@@ -17,16 +17,13 @@ const internal_error = 'Internal Server Error';
 const roles = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'];
 
 const loginRoute = async (req, res) => {
-  let conn, user;
+  let conn;
   try {
 
     /* check if login credentials are provided */
     if (!req.body.user_name || !req.body.password) {
       return res.send(400, { message: invalid_data });
     }
-
-    conn = await r.connect();
-
 
   } catch (e) {
     res.send(500, { message: internal_error });
@@ -72,6 +69,8 @@ const removeUserRoute = async (req, res) => {
 }
 
 
+
+server.use(restify.plugins.bodyParser());
 server.post('/api/login', loginRoute);
 server.get('/api/users/:role', getUsersRoute);
 server.post('/api/users', createUserRoute);
@@ -93,7 +92,7 @@ server.listen(port, () => {
     const indexes_made = await r.db('test').table('company_users').indexList().run(conn);
 
     /* create indexes if they don't exist already */
-    ['role'].filter(item => !indexes_made.includes(item))
+    ['role', 'user_name'].filter(item => !indexes_made.includes(item))
       .forEach(index_name => indexCreate(conn, index_name)
         .then(console.log)
         .catch(({ msg }) => console.log(msg))
