@@ -37,17 +37,38 @@ const loginRoute = async (req, res) => {
 
 
 const getUsersRoute = async (req, res) => {
+  let conn;
+  try {
 
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
 }
 
 
 const createUserRoute = async (req, res) => {
+  let conn;
+  try {
 
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
 }
 
 
 const removeUserRoute = async (req, res) => {
+  let conn;
+  try {
 
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
 }
 
 
