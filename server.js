@@ -240,19 +240,19 @@ const removeUserRoute = async (req, res) => {
     /* get the list of `roles` that can be removed by query `role`  */
     switch (req.query.role.toLowerCase()) {
       case 'ceo':
-        employees_that_can_be_remove = roles.slice();
+        employees_that_can_be_remove = roles.slice(); /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
         break;
       case 'president':
-        employees_that_can_be_remove = roles.slice(3);
+        employees_that_can_be_remove = roles.slice(3); /* [ 'hr', 'pm', 'senior developer', 'junior developer'] */
         break;
       case 'hr':
-        employees_that_can_be_remove = roles.slice(4);
+        employees_that_can_be_remove = roles.slice(4); /* ['pm', 'senior developer', 'junior developer'] */
         break;
       case 'pm':
-        employees_that_can_be_remove = roles.slice(5);
+        employees_that_can_be_remove = roles.slice(5); /* ['senior developer', 'junior developer'] */
         break;
       case 'senior developer':
-        employees_that_can_be_remove = roles.slice(6);
+        employees_that_can_be_remove = roles.slice(6); /* ['junior developer'] */
         break;
       default:
         employees_that_can_be_remove = undefined;
@@ -317,7 +317,7 @@ const updateUserRoute = async (req, res) => {
     /* get the list of `roles` that can be updated by query `role`  */
     switch (req.query.role.toLowerCase()) {
       case 'ceo':
-        employees_that_can_be_updated = roles.slice(); /* ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+        employees_that_can_be_updated = roles.slice(); /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
         break;
       case 'president':
         employees_that_can_be_updated = roles.slice(2); /* ['president', 'hr', 'pm', 'senior developer', 'junior developer'] */
