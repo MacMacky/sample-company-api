@@ -27,11 +27,12 @@ const getUsersRoute = async (req, res) => {
     /* initialize connection here */
     conn = await r.connect();
 
-
+    /* check if query `role` is in roles */
     if (req.query.role && !roles.includes(req.query.role.toLowerCase())) {
       return res.send(400, { message: invalid_role });
     }
 
+    /* check if query `role` has a value and use that value for the index */
     if (req.query.role) {
       employees = await r.db('test').table('employees')
         .getAll(req.query.role.toLowerCase(), { index: 'role' })
@@ -68,6 +69,8 @@ const loginRoute = async (req, res) => {
       .coerceTo('array')
       .run(conn);
 
+
+    /* check if user does not exists */
     if (!user) {
       return res.send(400, { message: 'user does not exists' });
     }
