@@ -162,7 +162,6 @@ const createUserRoute = async (req, res) => {
         : { ...req.body, role: req.body.role.toLowerCase(), id: generated_keys[0] });
 
   } catch (e) {
-    console.log(e);
     res.send(500, { message: internal_error });
   } finally {
     conn && conn.close();
