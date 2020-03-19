@@ -15,6 +15,8 @@ const invalid_role = 'role not valid!';
 const invalid_id = 'Invalid id!';
 const id_does_not_exists = 'id does not exists.';
 const internal_error = 'Internal Server Error';
+const invalid_update = `you don't have permission to update this employee.`;
+const invalid_remove = `you don't have permission to remove this employee.`
 /* Responses End */
 
 const roles = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'];
@@ -341,8 +343,20 @@ const updateUserRoute = async (req, res) => {
       .get(req.params.id)
       .run(conn);
 
+
+    /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
     if (!employees_that_can_be_updated.includes(user.role)) {
       return res.send(400, { message: "you don't have permission to update this employee." })
+    }
+
+    const is_id_equals = req.params.id === user.id;
+
+    if (user.role === 'senior developer' && req.query.role === 'senior developer' && !is_id_equals) {
+      return res.send(400, { message: "you don't have permission to update this employee." });
+    }
+
+    if (user.role === 'pm' && req.query.role === 'pm' && !is_id_equals) {
+      return res.send(400, { message: "you don't have permission to update this employee." });
     }
 
     /* updating user */
