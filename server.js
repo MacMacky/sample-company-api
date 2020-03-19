@@ -294,7 +294,7 @@ const removeUserRoute = async (req, res) => {
 
 
 const updateUserRoute = async (req, res) => {
-  let conn;
+  let conn, employees_that_can_be_updated;
   try {
     /* check if id is provided */
     if (!req.params.id) {
@@ -304,7 +304,7 @@ const updateUserRoute = async (req, res) => {
     /* initialize connection here */
     conn = await r.connect();
 
-    /* check if id exists in the table */
+    /* check if id does not exists in the table */
     if (!(await r.db('test').table('employees').get(req.params.id).run(conn))) {
       return res.send(400, { message: id_does_not_exists });
     }
@@ -313,16 +313,36 @@ const updateUserRoute = async (req, res) => {
       return res.send(400, { message: invalid_role });
     }
 
-    if (req.query.role) {
-      const { length } = await r.db('test').table('employees')
-        .getAll(req.query.role.toLowerCase(), { index: 'role' })
-        .coerceTo('array')
-        .run(conn);
 
-      if (length && (req.query.role.toLowerCase() === 'ceo'
-        || req.query.role.toLowerCase() === 'president')) {
-        return res.send(400, { message: `role for ${req.query.role} is already taken. please try another one.` });
-      }
+    /* get the list of `roles` that can be updated by query `role`  */
+    switch (req.query.role.toLowerCase()) {
+      case 'ceo':
+        employees_that_can_be_updated = roles.slice();
+        break;
+      case 'president':
+        employees_that_can_be_updated = roles.slice(3);
+        break;
+      case 'hr':
+        employees_that_can_be_updated = roles.slice(4);
+        break;
+      case 'pm':
+        employees_that_can_be_updated = roles.slice(5);
+        break;
+      case 'senior developer':
+        employees_that_can_be_updated = roles.slice(6);
+        break;
+      default:
+        employees_that_can_be_updated = undefined;
+        break;
+    }
+
+
+    const user = await r.db('test').table('employees')
+      .get(req.params.id)
+      .run(conn);
+
+    if (!employees_that_can_be_updated.includes(user.role)) {
+      return res.send(400, { message: "you don't have permission to update this employee." })
     }
 
     /* updating user */
