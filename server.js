@@ -19,6 +19,40 @@ const internal_error = 'Internal Server Error';
 
 const roles = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'];
 
+
+
+const getUsersRoute = async (req, res) => {
+  let conn, employees;
+  try {
+    /* initialize connection here */
+    conn = await r.connect();
+
+
+    if (req.query.role && !roles.includes(req.query.role.toLowerCase())) {
+      return res.send(400, { message: invalid_role });
+    }
+
+    if (req.query.role) {
+      employees = await r.db('test').table('employees')
+        .getAll(req.query.role.toLowerCase(), { index: 'role' })
+        .coerceTo('array')
+        .run(conn);
+    } else {
+      employees = await r.db('test').table('employees')
+        .coerceTo('array')
+        .run(conn);
+    }
+
+    res.send(200, { employees });
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
+}
+
+
+
 const loginRoute = async (req, res) => {
   let conn, roles_to_select, employees, user;
   try {
@@ -84,10 +118,20 @@ const loginRoute = async (req, res) => {
 }
 
 
-const getUsersRoute = async (req, res) => {
+const getUsersByIdRoute = async (req, res) => {
   let conn;
   try {
+    /* check if id is provided */
+    if (!req.params.id) {
+      return res.send(400, { message: invalid_id });
+    }
 
+    /* initialize connection here */
+    conn = await r.connect();
+
+    const user = await r.db('test').table('employees').get(req.params.id).run(conn);
+
+    res.send(user ? 200 : 400, user || { message: id_does_not_exists });
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
@@ -170,9 +214,74 @@ const createUserRoute = async (req, res) => {
 
 
 const removeUserRoute = async (req, res) => {
-  let conn;
+  let conn, employees_that_can_be_remove;
   try {
 
+    /* check if id is provided */
+    if (!req.params.employee_id) {
+      return res.send(400, { message: invalid_id });
+    }
+
+    /* check if query parameter `role` io provided */
+    if (!req.query.role) {
+      return res.send(400, { message: 'required parameter missing.' });
+    }
+
+
+    /* check if `role` is valid */
+    if (!roles.includes(req.query.role.toLowerCase())) {
+      return res.send(400, { message: invalid_role });
+    }
+
+
+    /* get the list of `roles` that can be removed by query `role`  */
+    switch (req.query.role.toLowerCase()) {
+      case 'ceo':
+        employees_that_can_be_remove = roles.slice();
+        break;
+      case 'president':
+        employees_that_can_be_remove = roles.slice(3);
+        break;
+      case 'hr':
+        employees_that_can_be_remove = roles.slice(4);
+        break;
+      case 'pm':
+        employees_that_can_be_remove = roles.slice(5);
+        break;
+      case 'senior developer':
+        employees_that_can_be_remove = roles.slice(6);
+        break;
+      default:
+        employees_that_can_be_remove = undefined;
+        break;
+    }
+
+
+
+    /* initialize connection here */
+    conn = await r.connect();
+
+    const user = await r.db('test').table('employees')
+      .get(req.params.employee_id)
+      .run(conn);
+
+    /* check if `employee_id` user does not exists */
+    if (!user) {
+      return res.send(400, { message: 'user does not exists' });
+    }
+
+    /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
+    if (!employees_that_can_be_remove.includes(user.role)) {
+      return res.send(400, { message: "you don't have permission to remove this employee." });
+    }
+
+
+    await r.db('test').table('employees')
+      .get(req.params.employee_id)
+      .delete()
+      .run(conn);
+
+    res.send(200);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
@@ -184,6 +293,39 @@ const removeUserRoute = async (req, res) => {
 const updateUserRoute = async (req, res) => {
   let conn;
   try {
+    /* check if id is provided */
+    if (!req.params.id) {
+      return res.send(400, { message: invalid_id });
+    }
+
+    /* initialize connection here */
+    conn = await r.connect();
+
+    /* check if id exists in the table */
+    if (!(await r.db('test').table('employees').get(req.params.id).run(conn))) {
+      return res.send(400, { message: id_does_not_exists });
+    }
+
+    if (req.query.role && !roles.includes(req.query.role.toLowerCase())) {
+      return res.send(400, { message: invalid_role });
+    }
+
+    if (req.query.role) {
+      const { length } = await r.db('test').table('employees')
+        .getAll(req.query.role.toLowerCase(), { index: 'role' })
+        .coerceTo('array')
+        .run(conn);
+
+      if (length && (req.query.role.toLowerCase() === 'ceo'
+        || req.query.role.toLowerCase() === 'president')) {
+        return res.send(400, { message: `role for ${req.query.role} is already taken. please try another one.` });
+      }
+    }
+
+    /* updating user */
+    await r.db('test').table('employees').get(req.params.id).update(req.body).run(conn);
+
+    return res.send(200, req.body);
 
   } catch (e) {
     res.send(500, { message: internal_error });
@@ -194,11 +336,13 @@ const updateUserRoute = async (req, res) => {
 
 
 server.use(restify.plugins.bodyParser());
+server.use(restify.plugins.queryParser());
 server.post('/api/login', loginRoute);
-server.get('/api/employees/:id', getUsersRoute);
+server.get('/api/employees', getUsersRoute);
+server.get('/api/employees/:id', getUsersByIdRoute);
 server.post('/api/employees', createUserRoute);
 server.put('/api/employees/:id', updateUserRoute);
-server.del('/api/employees/:id/role/:role', removeUserRoute);
+server.del('/api/employees/:employee_id', removeUserRoute);
 server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
 server.put('*', (req, res) => res.send(404));
