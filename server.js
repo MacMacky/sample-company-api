@@ -4,9 +4,30 @@ const r = require('rethinkdb');
 
 const port = 3000;
 const server = restify.createServer();
+const roles = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'];
+
 
 /* Helpers */
 const isString = val => typeof val === 'string';
+const rolesToBeModifiedByRole = (role, operation = 'update') => {
+  if (operation === 'update') {
+    return {
+      "ceo": roles, /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+      "president": roles.slice(2), /* ['president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+      "hr": roles.slice(3), /* [hr', 'pm', 'senior developer', 'junior developer'] */
+      "pm": roles.slice(4), /* ['pm', 'senior developer', 'junior developer'] */
+      "senior developer": roles.slice(5) /* ['senior developer', 'junior developer'] */
+    }[role.toLowerCase()]
+  } else {
+    return {
+      "ceo": roles, /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+      "president": roles.slice(3), /* [ 'hr', 'pm', 'senior developer', 'junior developer'] */
+      "hr": roles.slice(4), /* ['pm', 'senior developer', 'junior developer'] */
+      "pm": roles.slice(5), /* ['senior developer', 'junior developer'] */
+      "senior developer": roles.slice(6), /* ['junior developer'] */
+    }[role.toLowerCase()]
+  }
+}
 /* Helpers End */
 
 /* Response */
@@ -19,7 +40,7 @@ const invalid_update = `you don't have permission to update this employee.`;
 const invalid_remove = `you don't have permission to remove this employee.`
 /* Responses End */
 
-const roles = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'];
+
 
 
 
@@ -240,28 +261,12 @@ const removeUserRoute = async (req, res) => {
 
 
     /* get the list of `roles` that can be removed by query `role`  */
-    switch (req.query.role.toLowerCase()) {
-      case 'ceo':
-        employees_that_can_be_remove = roles.slice(); /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-        break;
-      case 'president':
-        employees_that_can_be_remove = roles.slice(3); /* [ 'hr', 'pm', 'senior developer', 'junior developer'] */
-        break;
-      case 'hr':
-        employees_that_can_be_remove = roles.slice(4); /* ['pm', 'senior developer', 'junior developer'] */
-        break;
-      case 'pm':
-        employees_that_can_be_remove = roles.slice(5); /* ['senior developer', 'junior developer'] */
-        break;
-      case 'senior developer':
-        employees_that_can_be_remove = roles.slice(6); /* ['junior developer'] */
-        break;
-      default:
-        employees_that_can_be_remove = undefined;
-        break;
-    }
-
-
+    employees_that_can_be_remove = rolesToBeModifiedByRole(req.query.role, "remove");
+    /* ceo, employees_that_can_be_remove =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* president, employees_that_can_be_remove =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* hr, employees_that_can_be_remove =  ['pm', 'senior developer', 'junior developer'] */
+    /* pm, employees_that_can_be_remove =  ['senior developer', 'junior developer']  */
+    /* senior developer, employees_that_can_be_remove = ['junior developer']  */
 
     /* initialize connection here */
     conn = await r.connect();
@@ -277,7 +282,7 @@ const removeUserRoute = async (req, res) => {
 
     /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
     if (!employees_that_can_be_remove.includes(user.role)) {
-      return res.send(400, { message: "you don't have permission to remove this employee." });
+      return res.send(400, { message: invalid_remove });
     }
 
 
@@ -315,48 +320,40 @@ const updateUserRoute = async (req, res) => {
       return res.send(400, { message: invalid_role });
     }
 
-
     /* get the list of `roles` that can be updated by query `role`  */
-    switch (req.query.role.toLowerCase()) {
-      case 'ceo':
-        employees_that_can_be_updated = roles.slice(); /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-        break;
-      case 'president':
-        employees_that_can_be_updated = roles.slice(2); /* ['president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-        break;
-      case 'hr':
-        employees_that_can_be_updated = roles.slice(3); /* [hr', 'pm', 'senior developer', 'junior developer'] */
-        break;
-      case 'pm':
-        employees_that_can_be_updated = roles.slice(4); /* ['pm', 'senior developer', 'junior developer'] */
-        break;
-      case 'senior developer':
-        employees_that_can_be_updated = roles.slice(5); /* ['senior developer', 'junior developer'] */
-        break;
-      default:
-        employees_that_can_be_updated = undefined;
-        break;
-    }
-
+    employees_that_can_be_updated = rolesToBeModifiedByRole(req.query.role);
+    /* ceo, employees_that_can_be_remove = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* president, employees_that_can_be_remove = ['president', 'hr', 'pm', 'senior developer', 'junior developer']  */
+    /* hr,  employees_that_can_be_remove = [hr', 'pm', 'senior developer', 'junior developer'] */
+    /* pm, employees_that_can_be_remove = ['pm', 'senior developer', 'junior developer'] */
+    /* senior developer, employees_that_can_be_remove = ['senior developer', 'junior developer'] */
 
     const user = await r.db('test').table('employees')
       .get(req.params.id)
       .run(conn);
 
-
     /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
     if (!employees_that_can_be_updated.includes(user.role)) {
-      return res.send(400, { message: "you don't have permission to update this employee." })
+      return res.send(400, { message: invalid_update })
     }
 
+
+    /* check if user's `id` is equal to parameters value `id` */
     const is_id_equals = req.params.id === user.id;
 
-    if (user.role === 'senior developer' && req.query.role === 'senior developer' && !is_id_equals) {
-      return res.send(400, { message: "you don't have permission to update this employee." });
+    /* check if the `senior developer` updating is not the owner of this `id` */
+    if (user.role === 'senior developer' && req.query.role.toLowerCase() === 'senior developer' && !is_id_equals) {
+      return res.send(400, { message: invalid_update });
     }
 
-    if (user.role === 'pm' && req.query.role === 'pm' && !is_id_equals) {
-      return res.send(400, { message: "you don't have permission to update this employee." });
+    /* check if the `pm` updating is not the owner of this `id` */
+    if (user.role === 'pm' && req.query.role.toLowerCase() === 'pm' && !is_id_equals) {
+      return res.send(400, { message: invalid_update });
+    }
+
+    /* check if the `hr` updating is not the owner of this `id` */
+    if (user.role === 'hr' && req.query.role.toLowerCase() === 'hr' && !is_id_equals) {
+      return res.send(400, { message: invalid_update });
     }
 
     /* updating user */
