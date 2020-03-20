@@ -195,7 +195,7 @@ const createUserRoute = async (req, res) => {
     }
 
 
-    /* check if role of ceo and president is already taken */
+    /* check if role of `ceo` or `president` is already taken */
     if (req.body.role.toLowerCase() === 'president' || req.body.role.toLowerCase() === 'ceo') {
 
       [user] = await r.db('test').table('employees')
@@ -288,6 +288,37 @@ const removeUserRoute = async (req, res) => {
 
 
 const updateUserRoute = async (req, res) => {
+  let conn;
+  try {
+
+    /* check if id is provided */
+    if (!req.params.id) {
+      return res.send(400, { message: invalid_id });
+    }
+
+
+    /* check if `role` is provided and is not valid */
+    if (req.body.role && !roles.includes(req.body.role.toLowerCase())) {
+      return res.send(400, { message: invalid_role });
+    }
+
+    /* initialize connection here */
+    conn = await r.connect();
+
+    const { skipped } = await r.db('test').table('employees')
+      .get(req.params.id)
+      .update(req.body)
+      .run(conn)
+
+    res.send(skipped ? 400 : 200, skipped ? { message: id_does_not_exists } : req.body);
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close()
+  }
+}
+
+const updateUserByHigherUpRoute = async (req, res) => {
   let conn, employees_that_can_be_updated;
   try {
     /* check if id is provided */
@@ -356,6 +387,7 @@ const updateUserRoute = async (req, res) => {
 }
 
 
+
 server.use(restify.plugins.bodyParser());
 server.use(restify.plugins.queryParser());
 server.post('/api/login', loginRoute);
@@ -363,6 +395,7 @@ server.get('/api/employees', getUsersRoute);
 server.get('/api/employees/:id', getUsersByIdRoute);
 server.post('/api/employees', createUserRoute);
 server.put('/api/employees/:id', updateUserRoute);
+//server.put('/api/employees/:id/')
 server.del('/api/employees/:employee_id', removeUserRoute);
 server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
