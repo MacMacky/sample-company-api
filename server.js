@@ -257,28 +257,18 @@ const removeUserRoute = async (req, res) => {
     /* initialize connection here */
     conn = await r.connect();
 
-    const user = await r.db('test').table('employees')
-      .get(req.params.employee_id)
-      .run(conn);
-
-    /* check if `employee_id` user does not exists */
-    if (!user) {
-      return res.send(400, { message: 'user does not exists' });
-    }
-
     /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
     if (!employees_that_can_be_remove.includes(user.role)) {
       return res.send(400, { message: invalid_remove });
     }
 
-
-
-    await r.db('test').table('employees')
+    /* get `skipped` property to check if the user `id` exists */
+    const { deleted } = await r.db('test').table('employees')
       .get(req.params.employee_id)
       .delete()
       .run(conn);
 
-    res.send(200);
+    res.send(deleted ? 200 : 400, deleted ? undefined : { message: id_does_not_exists });
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
@@ -305,6 +295,7 @@ const updateUserRoute = async (req, res) => {
     /* initialize connection here */
     conn = await r.connect();
 
+    /* get `skipped` property to check if the user `id` exists */
     const { skipped } = await r.db('test').table('employees')
       .get(req.params.id)
       .update(req.body)
