@@ -107,11 +107,11 @@ const loginRoute = async (req, res) => {
     const { role } = user;
 
     roles_to_select = rolesToBeModifiedByRole(role, 'remove');
-    /* ceo, employees_that_can_be_remove =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* president, employees_that_can_be_remove =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* hr, employees_that_can_be_remove =  ['pm', 'senior developer', 'junior developer'] */
-    /* pm, employees_that_can_be_remove =  ['senior developer', 'junior developer']  */
-    /* senior developer, employees_that_can_be_remove = ['junior developer']  */
+    /* ceo =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* president =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* hr =  ['pm', 'senior developer', 'junior developer'] */
+    /* pm =  ['senior developer', 'junior developer']  */
+    /* senior developer = ['junior developer']  */
 
 
     if (roles_to_select) {
@@ -248,11 +248,11 @@ const removeUserRoute = async (req, res) => {
 
     /* get the list of `roles` that can be removed by query `role`  */
     employees_that_can_be_remove = rolesToBeModifiedByRole(req.query.role, "remove");
-    /* ceo, employees_that_can_be_remove =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* president, employees_that_can_be_remove =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* hr, employees_that_can_be_remove =  ['pm', 'senior developer', 'junior developer'] */
-    /* pm, employees_that_can_be_remove =  ['senior developer', 'junior developer']  */
-    /* senior developer, employees_that_can_be_remove = ['junior developer']  */
+    /* ceo =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* president =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* hr =  ['pm', 'senior developer', 'junior developer'] */
+    /* pm =  ['senior developer', 'junior developer']  */
+    /* senior developer = ['junior developer']  */
 
     /* initialize connection here */
     conn = await r.connect();
@@ -309,11 +309,11 @@ const updateUserRoute = async (req, res) => {
 
     /* get the list of `roles` that can be updated by query `role`  */
     employees_that_can_be_updated = rolesToBeModifiedByRole(req.query.role);
-    /* ceo, employees_that_can_be_remove = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* president, employees_that_can_be_remove = ['president', 'hr', 'pm', 'senior developer', 'junior developer']  */
-    /* hr,  employees_that_can_be_remove = [hr', 'pm', 'senior developer', 'junior developer'] */
-    /* pm, employees_that_can_be_remove = ['pm', 'senior developer', 'junior developer'] */
-    /* senior developer, employees_that_can_be_remove = ['senior developer', 'junior developer'] */
+    /* ceo = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* president = ['president', 'hr', 'pm', 'senior developer', 'junior developer']  */
+    /* hr = [hr', 'pm', 'senior developer', 'junior developer'] */
+    /* pm = ['pm', 'senior developer', 'junior developer'] */
+    /* senior developer = ['senior developer', 'junior developer'] */
 
     const user = await r.db('test').table('employees')
       .get(req.params.id)
