@@ -342,15 +342,9 @@ const updateUserByHigherUpRoute = async (req, res) => {
     /* initialize connection here */
     conn = await r.connect();
 
-
     /* explicitly specify database name */
     conn.use('test');
 
-
-    /* check if id does not exists in the table */
-    if (!(await r.table('employees').get(req.params.id).run(conn))) {
-      return res.send(400, { message: id_does_not_exists });
-    }
 
     if (req.query.role && !roles.includes(req.query.role.toLowerCase())) {
       return res.send(400, { message: invalid_role });
@@ -367,6 +361,11 @@ const updateUserByHigherUpRoute = async (req, res) => {
     const user = await r.table('employees')
       .get(req.params.id)
       .run(conn);
+
+    /* check if user does not exists */
+    if (!user) {
+      return res.send(400, { message: id_does_not_exists });
+    }
 
     /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
     if (!employees_that_can_be_updated.includes(user.role)) {
