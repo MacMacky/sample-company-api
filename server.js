@@ -76,7 +76,6 @@ const getUsersRoute = async (req, res) => {
 }
 
 
-
 const loginRoute = async (req, res) => {
   let conn, roles_to_select, employees, user;
   try {
@@ -107,26 +106,13 @@ const loginRoute = async (req, res) => {
     /* get role for the specific user */
     const { role } = user;
 
-    switch (role) {
-      case 'ceo':
-        roles_to_select = roles.slice(1);
-        break;
-      case 'president':
-        roles_to_select = roles.slice(3);
-        break;
-      case 'hr':
-        roles_to_select = roles.slice(4);
-        break;
-      case 'pm':
-        roles_to_select = roles.slice(5);
-        break;
-      case 'senior developer':
-        roles_to_select = roles.slice(6);
-        break;
-      default:
-        roles_to_select = undefined;
-        break;
-    }
+    roles_to_select = rolesToBeModifiedByRole(role, 'remove');
+    /* ceo, employees_that_can_be_remove =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* president, employees_that_can_be_remove =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* hr, employees_that_can_be_remove =  ['pm', 'senior developer', 'junior developer'] */
+    /* pm, employees_that_can_be_remove =  ['senior developer', 'junior developer']  */
+    /* senior developer, employees_that_can_be_remove = ['junior developer']  */
+
 
     if (roles_to_select) {
       employees = await r.db('test').table('employees')
@@ -284,6 +270,7 @@ const removeUserRoute = async (req, res) => {
     if (!employees_that_can_be_remove.includes(user.role)) {
       return res.send(400, { message: invalid_remove });
     }
+
 
 
     await r.db('test').table('employees')
