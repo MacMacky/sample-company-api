@@ -60,12 +60,12 @@ const getUsersRoute = async (req, res) => {
 
     /* check if query `role` has a value and use that value for the index */
     if (req.query.role) {
-      employees = await r.table('employees')
+      employees = await r.table('users')
         .getAll(req.query.role.toLowerCase(), { index: 'role' })
         .coerceTo('array')
         .run(conn);
     } else {
-      employees = await r.table('employees')
+      employees = await r.table('users')
         .coerceTo('array')
         .run(conn);
     }
@@ -93,7 +93,7 @@ const loginRoute = async (req, res) => {
     /* explicitly specify database name */
     conn.use('test');
 
-    [user] = await r.table('employees')
+    [user] = await r.table('users')
       .getAll(req.body.user_name, { index: 'user_name' })
       .coerceTo('array')
       .run(conn);
@@ -122,7 +122,7 @@ const loginRoute = async (req, res) => {
 
 
     if (roles_to_select) {
-      employees = await r.table('employees')
+      employees = await r.table('users')
         .getAll(...roles_to_select, { index: 'role' })
         .coerceTo('array')
         .run(conn);
@@ -152,7 +152,7 @@ const getUsersByIdRoute = async (req, res) => {
     conn.use('test');
 
 
-    const user = await r.table('employees').get(req.params.id).run(conn);
+    const user = await r.table('users').get(req.params.id).run(conn);
 
     res.send(user ? 200 : 400, user || { message: id_does_not_exists });
   } catch (e) {
@@ -198,7 +198,7 @@ const createUserRoute = async (req, res) => {
     /* explicitly specify database name */
     conn.use('test');
 
-    [user] = await r.table('employees')
+    [user] = await r.table('users')
       .getAll(req.body.user_name, { index: 'user_name' })
       .coerceTo('array')
       .run(conn);
@@ -212,7 +212,7 @@ const createUserRoute = async (req, res) => {
     /* check if role of `ceo` or `president` is already taken */
     if (req.body.role.toLowerCase() === 'president' || req.body.role.toLowerCase() === 'ceo') {
 
-      [user] = await r.table('employees')
+      [user] = await r.table('users')
         .getAll(req.body.role.toLowerCase(), { index: 'role' })
         .coerceTo('array')
         .run(conn);
@@ -222,7 +222,7 @@ const createUserRoute = async (req, res) => {
       }
     }
 
-    const { first_error, generated_keys } = await r.table('employees')
+    const { first_error, generated_keys } = await r.table('users')
       .insert({ ...req.body, role: req.body.role.toLowerCase() })
       .run(conn);
 
@@ -280,7 +280,7 @@ const removeUserRoute = async (req, res) => {
     }
 
     /* get `skipped` property to check if the user `id` exists */
-    const { deleted } = await r.table('employees')
+    const { deleted } = await r.table('users')
       .get(req.params.employee_id)
       .delete()
       .run(conn);
@@ -318,7 +318,7 @@ const updateUserRoute = async (req, res) => {
 
 
     /* get `skipped` property to check if the user `id` exists */
-    const { skipped } = await r.table('employees')
+    const { skipped } = await r.table('users')
       .get(req.params.id)
       .update(req.body)
       .run(conn)
@@ -358,8 +358,8 @@ const updateUserByHigherUpRoute = async (req, res) => {
     /* pm = ['pm', 'senior developer', 'junior developer'] */
     /* senior developer = ['senior developer', 'junior developer'] */
 
-    const user = await r.table('employees')
-      .get(req.params.id)
+    const user = await r.table('users')
+      .get(req.params.employee_id)
       .run(conn);
 
     /* check if user does not exists */
@@ -392,7 +392,7 @@ const updateUserByHigherUpRoute = async (req, res) => {
     }
 
     /* updating user */
-    await r.table('employees').get(req.params.id).update(req.body).run(conn);
+    await r.table('users').get(req.params.employee_id).update(req.body).run(conn);
 
     return res.send(200, req.body);
 
@@ -408,19 +408,20 @@ const updateUserByHigherUpRoute = async (req, res) => {
 server.use(restify.plugins.bodyParser());
 server.use(restify.plugins.queryParser());
 server.post('/api/login', loginRoute);
-server.get('/api/employees', getUsersRoute);
-server.get('/api/employees/:id', getUsersByIdRoute);
-server.post('/api/employees', createUserRoute);
-server.put('/api/employees/:id', updateUserRoute);
+server.get('/api/users', getUsersRoute);
+server.get('/api/users/:id', getUsersByIdRoute);
+server.post('/api/users', createUserRoute);
+server.put('/api/users/:id', updateUserRoute);
+server.put('/api/users/:id/employees/:employee_id', updateUserByHigherUpRoute);
 //server.put('/api/employees/:id/')
-server.del('/api/employees/:employee_id', removeUserRoute);
+server.del('/api/users/:id/employees/:employee_id', removeUserRoute);
 server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
 server.put('*', (req, res) => res.send(404));
 server.del('*', (req, res) => res.send(404));
 
 
-const indexCreate = async (con, index_name, table_name = 'employees') => {
+const indexCreate = async (con, index_name, table_name = 'users') => {
   return r.table(table_name).indexCreate(index_name).run(con);
 };
 
@@ -432,7 +433,7 @@ server.listen(port, async () => {
     /* explicitly specify database name */
     conn.use('test');
 
-    const indexes_made = await r.table('employees').indexList().run(conn);
+    const indexes_made = await r.table('users').indexList().run(conn);
     /* create indexes if they don't exist already */
     ['role', 'user_name'].filter(item => !indexes_made.includes(item))
       .forEach(index_name => indexCreate(conn, index_name)
