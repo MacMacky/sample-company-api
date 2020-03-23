@@ -252,9 +252,12 @@ const removeUserByHigherUpRoute = async (req, res) => {
     if (!employee) {
       return res.send(400, { message: `employee ${id_does_not_exists}` });
     }
+    /* extract needed properties */
+    const { role: emp_role } = employee;
+    const { role: user_role } = user;
 
     /* get the list of `roles` that can be removed by query `role`  */
-    employees_that_can_be_remove = rolesToBeModifiedByRole(user.role, "remove");
+    employees_that_can_be_remove = rolesToBeModifiedByRole(user_role, "remove");
     /* ceo =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* president =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* hr =  ['pm', 'senior developer', 'junior developer'] */
@@ -262,7 +265,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
     /* senior developer = ['junior developer']  */
 
     /* check if `employee.role` does not belong to `roles` that can be remove by `users.role` */
-    if (!employees_that_can_be_remove.includes(employee.role)) {
+    if (!employees_that_can_be_remove.includes(emp_role)) {
       return res.send(400, { message: invalid_remove });
     }
 
@@ -341,8 +344,12 @@ const updateUserByHigherUpRoute = async (req, res) => {
       return res.send(400, { message: `employee ${id_does_not_exists}` });
     }
 
+    /* extract needed properties */
+    const { id: emp_id, role: emp_role } = employee;
+    const { role: user_role } = user;
+
     /* get the list of `roles` that can be updated by users `role`  */
-    employees_that_can_be_updated = rolesToBeModifiedByRole(user.role);
+    employees_that_can_be_updated = rolesToBeModifiedByRole(user_role);
     /* ceo = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* president = ['president', 'hr', 'pm', 'senior developer', 'junior developer']  */
     /* hr = [hr', 'pm', 'senior developer', 'junior developer'] */
@@ -351,26 +358,26 @@ const updateUserByHigherUpRoute = async (req, res) => {
 
 
     /* check if `employee.role` does not belong to `roles` that can be remove by `user` */
-    if (!employees_that_can_be_updated.includes(employee.role)) {
+    if (!employees_that_can_be_updated.includes(emp_role)) {
       return res.send(400, { message: invalid_update })
     }
 
 
     /* check if user's `id` is equal to employees `id` */
-    const is_id_equals = req.params.id === employee.id;
+    const is_id_equals = req.params.id === emp_id;
 
     /* check if the `senior developer` updating is not the owner of this `id` */
-    if (user.role === 'senior developer' && employee.role === 'senior developer' && !is_id_equals) {
+    if (user_role === 'senior developer' && emp_role === 'senior developer' && !is_id_equals) {
       return res.send(400, { message: invalid_update });
     }
 
     /* check if the `pm` updating is not the owner of this `id` */
-    if (user.role === 'pm' && employee.role === 'pm' && !is_id_equals) {
+    if (user_role === 'pm' && emp_role === 'pm' && !is_id_equals) {
       return res.send(400, { message: invalid_update });
     }
 
     /* check if the `hr` updating is not the owner of this `id` */
-    if (user.role === 'hr' && employee.role === 'hr' && !is_id_equals) {
+    if (user_role === 'hr' && emp_role === 'hr' && !is_id_equals) {
       return res.send(400, { message: invalid_update });
     }
 
