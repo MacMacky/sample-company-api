@@ -47,11 +47,9 @@ const invalid_remove = `you don't have permission to remove this employee.`
 const getUsersRoute = async (req, res) => {
   let conn, employees;
   try {
-    /* initialize connection here */
-    conn = await r.connect();
 
-    /* explicitly specify database name */
-    conn.use('test');
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
 
     /* check if query `role` is in roles */
     if (req.query.role && !roles.includes(req.query.role.toLowerCase())) {
@@ -87,11 +85,9 @@ const loginRoute = async (req, res) => {
     if (!req.body.user_name || !req.body.password) {
       return res.send(400, { message: invalid_data });
     }
-    /* initialize connection here */
-    conn = await r.connect();
 
-    /* explicitly specify database name */
-    conn.use('test');
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
 
     [user] = await r.table('users')
       .getAll(req.body.user_name, { index: 'user_name' })
@@ -145,11 +141,8 @@ const getUsersByIdRoute = async (req, res) => {
       return res.send(400, { message: invalid_id });
     }
 
-    /* initialize connection here */
-    conn = await r.connect();
-
-    /* explicitly specify database name */
-    conn.use('test');
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
 
 
     const user = await r.table('users').get(req.params.id).run(conn);
@@ -192,11 +185,8 @@ const createUserRoute = async (req, res) => {
       return res.send(400, { message: invalid_role });
     }
 
-    /* initialize connection here */
-    conn = await r.connect();
-
-    /* explicitly specify database name */
-    conn.use('test');
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
 
     [user] = await r.table('users')
       .getAll(req.body.user_name, { index: 'user_name' })
@@ -268,11 +258,8 @@ const removeUserByHigherUpRoute = async (req, res) => {
     /* pm =  ['senior developer', 'junior developer']  */
     /* senior developer = ['junior developer']  */
 
-    /* initialize connection here */
-    conn = await r.connect();
-
-    /* explicitly specify database name */
-    conn.use('test');
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
 
     /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
     if (!employees_that_can_be_remove.includes(user.role)) {
@@ -309,12 +296,8 @@ const updateUserRoute = async (req, res) => {
       return res.send(400, { message: invalid_role });
     }
 
-    /* initialize connection here */
-    conn = await r.connect();
-
-
-    /* explicitly specify database name */
-    conn.use('test');
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
 
 
     /* get `skipped` property to check if the user `id` exists */
@@ -339,11 +322,8 @@ const updateUserByHigherUpRoute = async (req, res) => {
       return res.send(400, { message: invalid_id });
     }
 
-    /* initialize connection here */
-    conn = await r.connect();
-
-    /* explicitly specify database name */
-    conn.use('test');
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
 
     /* get higher up `user` */
     const user = await r.table('users')
@@ -434,10 +414,8 @@ const indexCreate = async (con, index_name, table_name = 'users') => {
 server.listen(port, async () => {
   let conn;
   try {
-    conn = await r.connect();
-
-    /* explicitly specify database name */
-    conn.use('test');
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
 
     const indexes_made = await r.table('users').indexList().run(conn);
     /* create indexes if they don't exist already */
