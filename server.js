@@ -175,13 +175,8 @@ const createUserRoute = async (req, res) => {
       return res.send(400, { message: invalid_data });
     }
 
-    /* check if role is provided */
-    if (!req.body.role || !isString(req.body.role)) {
-      return res.send(400, { message: invalid_data });
-    }
-
     /* check if role is valid */
-    if (!roles.includes(req.body.role.toLowerCase())) {
+    if (!req.body.role || !isString(req.body.role) || !roles.includes(req.body.role.toLowerCase())) {
       return res.send(400, { message: invalid_role });
     }
 
