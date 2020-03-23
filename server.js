@@ -1,5 +1,6 @@
 const restify = require('restify');
 const r = require('rethinkdb');
+const Promise = require('bluebird');
 
 
 const port = 3000;
@@ -229,35 +230,39 @@ const removeUserByHigherUpRoute = async (req, res) => {
   try {
 
     /* check if id is provided */
-    if (!req.params.employee_id) {
+    if (!req.params.employee_id || !req.params.id) {
       return res.send(400, { message: invalid_id });
     }
 
-    /* check if query parameter `role` io provided */
-    if (!req.query.role) {
-      return res.send(400, { message: 'required parameter missing.' });
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
+
+
+    const [user, employee] = await Promise.all([
+      r.table('users').get(req.params.id).run(conn),
+      r.table('users').get(req.params.employee_id).run(conn),
+    ]);
+
+    /* check if `user` does not exists */
+    if (!user) {
+      return res.send(400, { message: id_does_not_exists });
     }
 
-
-    /* check if `role` is valid */
-    if (!roles.includes(req.query.role.toLowerCase())) {
-      return res.send(400, { message: invalid_role });
+    /* check if `employee` does not exists */
+    if (!employee) {
+      return res.send(400, { message: `employee ${id_does_not_exists}` });
     }
-
 
     /* get the list of `roles` that can be removed by query `role`  */
-    employees_that_can_be_remove = rolesToBeModifiedByRole(req.query.role, "remove");
+    employees_that_can_be_remove = rolesToBeModifiedByRole(user.role, "remove");
     /* ceo =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* president =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* hr =  ['pm', 'senior developer', 'junior developer'] */
     /* pm =  ['senior developer', 'junior developer']  */
     /* senior developer = ['junior developer']  */
 
-    /* initialize connection here and explicitly specify database name */
-    conn = await r.connect({ db: 'test' });
-
-    /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
-    if (!employees_that_can_be_remove.includes(user.role)) {
+    /* check if `employee.role` does not belong to `roles` that can be remove by `users.role` */
+    if (!employees_that_can_be_remove.includes(employee.role)) {
       return res.send(400, { message: invalid_remove });
     }
 
@@ -321,14 +326,19 @@ const updateUserByHigherUpRoute = async (req, res) => {
     conn = await r.connect({ db: 'test' });
 
     /* get higher up `user` */
-    const user = await r.table('users')
-      .get(req.params.id)
-      .run(conn);
-
+    const [user, employee] = await Promise.all([
+      r.table('users').get(req.params.id).run(conn),
+      r.table('users').get(req.params.employee_id).run(conn)
+    ]);
 
     /* check if higher up `user` does not exists */
     if (!user) {
       return res.send(400, { message: id_does_not_exists });
+    }
+
+    /* check if `employee` does not exists */
+    if (!employee) {
+      return res.send(400, { message: `employee ${id_does_not_exists}` });
     }
 
     /* get the list of `roles` that can be updated by users `role`  */
@@ -339,16 +349,8 @@ const updateUserByHigherUpRoute = async (req, res) => {
     /* pm = ['pm', 'senior developer', 'junior developer'] */
     /* senior developer = ['senior developer', 'junior developer'] */
 
-    const employee = await r.table('users')
-      .get(req.params.employee_id)
-      .run(conn);
 
-    /* check if employee does not exists */
-    if (!employee) {
-      return res.send(400, { message: id_does_not_exists });
-    }
-
-    /* check if `employee.role` does not belong to `roles` that can be remove by  `role` */
+    /* check if `employee.role` does not belong to `roles` that can be remove by `user` */
     if (!employees_that_can_be_updated.includes(employee.role)) {
       return res.send(400, { message: invalid_update })
     }
@@ -394,7 +396,6 @@ server.get('/api/users/:id', getUsersByIdRoute);
 server.post('/api/users', createUserRoute);
 server.put('/api/users/:id', updateUserRoute);
 server.put('/api/users/:id/employees/:employee_id', updateUserByHigherUpRoute);
-//server.put('/api/employees/:id/')
 server.del('/api/users/:id/employees/:employee_id', removeUserByHigherUpRoute);
 server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
