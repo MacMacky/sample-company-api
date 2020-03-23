@@ -239,7 +239,7 @@ const createUserRoute = async (req, res) => {
 }
 
 
-const removeUserRoute = async (req, res) => {
+const removeUserByHigherUpRoute = async (req, res) => {
   let conn, employees_that_can_be_remove;
   try {
 
@@ -414,7 +414,7 @@ server.post('/api/users', createUserRoute);
 server.put('/api/users/:id', updateUserRoute);
 server.put('/api/users/:id/employees/:employee_id', updateUserByHigherUpRoute);
 //server.put('/api/employees/:id/')
-server.del('/api/users/:id/employees/:employee_id', removeUserRoute);
+server.del('/api/users/:id/employees/:employee_id', removeUserByHigherUpRoute);
 server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
 server.put('*', (req, res) => res.send(404));
