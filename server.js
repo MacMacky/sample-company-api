@@ -334,8 +334,8 @@ const updateUserRoute = async (req, res) => {
 const updateUserByHigherUpRoute = async (req, res) => {
   let conn, employees_that_can_be_updated;
   try {
-    /* check if id is provided */
-    if (!req.params.id) {
+    /* check if `id` or `employee_id` is provided */
+    if (!req.params.id || !req.params.employee_id) {
       return res.send(400, { message: invalid_id });
     }
 
@@ -345,49 +345,55 @@ const updateUserByHigherUpRoute = async (req, res) => {
     /* explicitly specify database name */
     conn.use('test');
 
+    /* get higher up `user` */
+    const user = await r.table('users')
+      .get(req.params.id)
+      .run(conn);
 
-    if (req.query.role && !roles.includes(req.query.role.toLowerCase())) {
-      return res.send(400, { message: invalid_role });
+
+    /* check if higher up `user` does not exists */
+    if (!user) {
+      return res.send(400, { message: id_does_not_exists });
     }
 
-    /* get the list of `roles` that can be updated by query `role`  */
-    employees_that_can_be_updated = rolesToBeModifiedByRole(req.query.role);
+    /* get the list of `roles` that can be updated by users `role`  */
+    employees_that_can_be_updated = rolesToBeModifiedByRole(user.role);
     /* ceo = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* president = ['president', 'hr', 'pm', 'senior developer', 'junior developer']  */
     /* hr = [hr', 'pm', 'senior developer', 'junior developer'] */
     /* pm = ['pm', 'senior developer', 'junior developer'] */
     /* senior developer = ['senior developer', 'junior developer'] */
 
-    const user = await r.table('users')
+    const employee = await r.table('users')
       .get(req.params.employee_id)
       .run(conn);
 
-    /* check if user does not exists */
-    if (!user) {
+    /* check if employee does not exists */
+    if (!employee) {
       return res.send(400, { message: id_does_not_exists });
     }
 
-    /* check if `user.role` does not belong to `roles` that can be remove by query `role` */
-    if (!employees_that_can_be_updated.includes(user.role)) {
+    /* check if `employee.role` does not belong to `roles` that can be remove by  `role` */
+    if (!employees_that_can_be_updated.includes(employee.role)) {
       return res.send(400, { message: invalid_update })
     }
 
 
-    /* check if user's `id` is equal to parameters value `id` */
-    const is_id_equals = req.params.id === user.id;
+    /* check if user's `id` is equal to employees `id` */
+    const is_id_equals = req.params.id === employee.id;
 
     /* check if the `senior developer` updating is not the owner of this `id` */
-    if (user.role === 'senior developer' && req.query.role.toLowerCase() === 'senior developer' && !is_id_equals) {
+    if (user.role === 'senior developer' && employee.role === 'senior developer' && !is_id_equals) {
       return res.send(400, { message: invalid_update });
     }
 
     /* check if the `pm` updating is not the owner of this `id` */
-    if (user.role === 'pm' && req.query.role.toLowerCase() === 'pm' && !is_id_equals) {
+    if (user.role === 'pm' && employee.role === 'pm' && !is_id_equals) {
       return res.send(400, { message: invalid_update });
     }
 
     /* check if the `hr` updating is not the owner of this `id` */
-    if (user.role === 'hr' && req.query.role.toLowerCase() === 'hr' && !is_id_equals) {
+    if (user.role === 'hr' && employee.role === 'hr' && !is_id_equals) {
       return res.send(400, { message: invalid_update });
     }
 
