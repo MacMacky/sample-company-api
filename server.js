@@ -266,13 +266,13 @@ const removeUserByHigherUpRoute = async (req, res) => {
       return res.send(400, { message: invalid_remove });
     }
 
-    /* get `skipped` property to check if the user `id` exists */
-    const { deleted } = await r.table('users')
+    /* updating `employee` here */
+    await r.table('users')
       .get(req.params.employee_id)
       .delete()
       .run(conn);
 
-    res.send(deleted ? 200 : 400, deleted ? undefined : { message: id_does_not_exists });
+    res.send(200);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
