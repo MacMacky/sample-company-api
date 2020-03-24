@@ -373,7 +373,9 @@ const updateUserByHigherUpRoute = async (req, res) => {
     }
 
     /* updating user */
-    const { first_error } = await r.table('users').get(req.params.employee_id).update(req.body).run(conn);
+    const { first_error } = await r.table('users').get(req.params.employee_id).update(
+      !req.body.role ? req.body : { ...req.body, role: req.body.role.toLowerCase() }
+    ).run(conn);
 
     return res.send(first_error ? 400 : 200, first_error ? { message: "Unable to update. Please try again later." } : req.body);
   } catch (e) {
