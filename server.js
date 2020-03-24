@@ -515,7 +515,7 @@ server.post('/api/users', createUserRoute);
 server.put('/api/users/:id', updateUserRoute);
 server.put('/api/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
 server.del('/api/users/:id/subordinates/:subordinate_id', removeUserByHigherUpRoute);
-server.post('api/logout', (req, res) => res.send(200, { is_auth: false }));
+server.post('/api/logout', (req, res) => res.send(200, { is_auth: false }));
 server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
 server.put('*', (req, res) => res.send(404));
