@@ -349,7 +349,7 @@ const updateUserByHigherUpRoute = async (req, res) => {
 
 
     /* check if `employee.role` does not belong to `roles` that can be remove by `user` */
-    if (!employees_that_can_be_updated.includes(emp_role)) {
+    if (!employees_that_can_be_updated.includes(emp_role) || user_role === 'assistant') {
       return res.send(400, { message: invalid_update })
     }
 
