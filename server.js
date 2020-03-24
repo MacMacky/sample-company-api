@@ -110,7 +110,7 @@ const loginRoute = async (req, res) => {
     const { role } = user;
 
     roles_to_select = rolesToBeModifiedByRole(role, 'remove');
-    /* ceo =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+    /* ceo =  ['assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* president =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* hr =  ['pm', 'senior developer', 'junior developer'] */
     /* pm =  ['senior developer', 'junior developer']  */
@@ -233,6 +233,11 @@ const getUsersSubordinateRoute = async (req, res) => {
 
     /* get the list of `roles` that are subordinates by user `role`  */
     subordinates_roles = rolesToBeModifiedByRole(user_role);
+
+    /* `subordinates_roles` is undefined when `user_role` is `junior developer` */
+    if (!subordinates_roles) {
+      return res.send(400, { message: 'Your not allowed to view this employee.' });
+    }
 
     /* check if `user.role` is not allowed to view `subordinates.role` or `user.role` is 'assistant' */
     if (!subordinates_roles.includes(sub_role) || user_role === 'assistant') {
