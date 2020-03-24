@@ -230,13 +230,13 @@ const getUsersSubordinateRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role: sub_role } = subordinate_id;
+    const { role: sub_role } = subordinate;
     const { role: user_role } = user;
 
     /* get the list of `roles` that are subordinates by user `role`  */
     subordinates_roles = rolesToBeModifiedByRole(user_role);
 
-    if (!subordinates_roles.includes(sub_role) && user_role === 'assistant') {
+    if (!subordinates_roles.includes(sub_role) && user_role !== 'assistant') {
       return res.send(400, { message: 'Your not allowed to view this employee.' });
     }
 
