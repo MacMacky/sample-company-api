@@ -95,7 +95,6 @@ const loginRoute = async (req, res) => {
       .coerceTo('array')
       .run(conn);
 
-
     /* check if user does not exists */
     if (!user) {
       return res.send(400, { message: 'user does not exists' });
@@ -117,10 +116,10 @@ const loginRoute = async (req, res) => {
     /* pm =  ['senior developer', 'junior developer']  */
     /* senior developer = ['junior developer']  */
 
-
     if (roles_to_select && role !== 'assistant') {
       subordinates = await r.table('users')
         .getAll(...roles_to_select, { index: 'role' })
+        .filter({ employment_status: 'activated' })
         .coerceTo('array')
         .run(conn);
     }
@@ -144,7 +143,6 @@ const getUserByIdRoute = async (req, res) => {
 
     /* initialize connection here and explicitly specify database name */
     conn = await r.connect({ db: 'test' });
-
 
     const user = await r.table('users').get(req.params.id).run(conn);
 
@@ -173,7 +171,6 @@ const getUsersSubordinatesRoute = async (req, res) => {
       .get(req.params.id)
       .run(conn);
 
-
     /* check if user does not exists */
     if (!user) {
       return res.send(400, { message: 'user does not exists' })
@@ -189,6 +186,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
     if (subordinates_roles && role !== 'assistant') {
       subordinates = await r.table('users')
         .getAll(...subordinates_roles, { index: 'role' })
+        .filter({ employment_status: 'activated' })
         .coerceTo('array')
         .run(conn);
     }
@@ -285,7 +283,6 @@ const createUserRoute = async (req, res) => {
       return res.send(400, { message: 'user_name is already taken. please choose another one.' });
     }
 
-
     /* check if role of `ceo` or `president` is already taken */
     if (req.body.role.toLowerCase() === 'president' || req.body.role.toLowerCase() === 'ceo') {
 
@@ -343,8 +340,20 @@ const removeUserByHigherUpRoute = async (req, res) => {
     if (!subordinate) {
       return res.send(400, { message: `subordinate ${id_does_not_exists}` });
     }
+
     /* extract needed properties */
-    const { role: user_role } = user;
+    const { role: user_role, employment_status: status } = user;
+    const { employment_status: sub_status } = subordinate;
+
+    /* check if `user` employment_status is `deactivated` */
+    if (status === 'deactivated') {
+      return res.send(400, { message: 'Your account has been deactivated.' });
+    }
+
+    /* check if `subordinate` employment_status is `deactivated` */
+    if (sub_status === 'deactivated') {
+      return res.send(400, { message: `You're subordinate's account has already been deactivated.` });
+    }
 
     /* check if `user.role` is not an `hr`, `president`, and `ceo` */
     if (!roles.slice(0, 4).includes(user_role) || user_role === 'assistant') {
@@ -354,10 +363,10 @@ const removeUserByHigherUpRoute = async (req, res) => {
     /* updating `employee` here */
     const { first_error } = await r.table('users')
       .get(req.params.subordinate_id)
-      .delete()
+      .update({ employment_status: 'deactivated' })
       .run(conn);
 
-    res.send(first_error ? 400 : 200, first_error ? { message: "Unable to delete. Please try again later." } : undefined);
+    res.send(first_error ? 400 : 200, first_error ? { message: "Unable to deactivate. Please try again later." } : undefined);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
@@ -427,8 +436,18 @@ const updateUserByHigherUpRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role: sub_role } = subordinate_id;
-    const { role: user_role } = user;
+    const { role: sub_role, employment_status: sub_status } = subordinate;
+    const { role: user_role, employment_status: status } = user;
+
+    /* check if `user` employment_status is `deactivated` */
+    if (status === 'deactivated') {
+      return res.send(400, { message: 'Your account has been deactivated.' });
+    }
+
+    /* check if `subordinate` employment_status is `deactivated` */
+    if (sub_status === 'deactivated') {
+      return res.send(400, { message: `You're subordinate's account has already been deactivated.` });
+    }
 
     /* get the list of `roles` that can be updated by users `role`  */
     subordinates_that_can_be_updated = rolesToBeModifiedByRole(user_role);
@@ -443,7 +462,6 @@ const updateUserByHigherUpRoute = async (req, res) => {
     if (!subordinates_that_can_be_updated.includes(sub_role) || user_role === 'assistant') {
       return res.send(400, { message: invalid_update })
     }
-
 
     /* check if user's `id` is equal to employees `id` */
     const is_id_equals = req.params.id === req.params.subordinate_id;
@@ -520,5 +538,4 @@ server.listen(port, async () => {
     conn && conn.close();
     console.log(`Server listening at port : ${port}`);
   }
-
 });
