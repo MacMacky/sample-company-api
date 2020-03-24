@@ -201,6 +201,53 @@ const getUsersSubordinatesRoute = async (req, res) => {
   }
 }
 
+const getUsersSubordinateRoute = async (req, res) => {
+  let conn, subordinates_roles;
+  try {
+
+    /* check if ids are not provided */
+    if (!req.params.id || !req.params.subordinate_id) {
+      return res.send(400, { message: invalid_id });
+    }
+
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
+
+    /* get higher up `user` and `subordinate` */
+    const [user, subordinate] = await all([
+      r.table('users').get(req.params.id).run(conn),
+      r.table('users').get(req.params.subordinate_id).run(conn),
+    ]);
+
+    /* check if higher up `user` does not exists */
+    if (!user) {
+      return res.send(400, { message: id_does_not_exists });
+    }
+
+    /* check if `subordinate` does not exists */
+    if (!subordinate) {
+      return res.send(400, { message: `subordinate ${id_does_not_exists}` });
+    }
+
+    /* extract needed properties */
+    const { role: sub_role } = subordinate_id;
+    const { role: user_role } = user;
+
+    /* get the list of `roles` that are subordinates by user `role`  */
+    subordinates_roles = rolesToBeModifiedByRole(user_role);
+
+    if (!subordinates_roles.includes(sub_role) && user_role === 'assistant') {
+      return res.send(400, { message: 'Your not allowed to view this employee.' });
+    }
+
+    res.send(200, subordinate);
+  } catch (error) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
+}
+
 const createUserRoute = async (req, res) => {
   let conn, user;
   try {
@@ -438,7 +485,7 @@ server.post('/api/login', loginRoute);
 server.get('/api/users', getUsersRoute);
 server.get('/api/users/:id', getUserByIdRoute);
 server.get('/api/users/:id/subordinates', getUsersSubordinatesRoute);
-server.get('/api/users/:id/subordinates/:subordinate_id');
+server.get('/api/users/:id/subordinates/:subordinate_id', getUsersSubordinateRoute);
 server.post('/api/users', createUserRoute);
 server.put('/api/users/:id', updateUserRoute);
 server.put('/api/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
