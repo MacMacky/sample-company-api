@@ -1,6 +1,6 @@
 const restify = require('restify');
 const r = require('rethinkdb');
-const Promise = require('bluebird');
+const { all } = require('bluebird');
 
 
 const port = 3000;
@@ -237,8 +237,8 @@ const removeUserByHigherUpRoute = async (req, res) => {
     /* initialize connection here and explicitly specify database name */
     conn = await r.connect({ db: 'test' });
 
-
-    const [user, employee] = await Promise.all([
+    /* get higher up `user` and `employee` */
+    const [user, employee] = await all([
       r.table('users').get(req.params.id).run(conn),
       r.table('users').get(req.params.employee_id).run(conn),
     ]);
@@ -319,8 +319,8 @@ const updateUserByHigherUpRoute = async (req, res) => {
     /* initialize connection here and explicitly specify database name */
     conn = await r.connect({ db: 'test' });
 
-    /* get higher up `user` */
-    const [user, employee] = await Promise.all([
+    /* get higher up `user` and `employee` */
+    const [user, employee] = await all([
       r.table('users').get(req.params.id).run(conn),
       r.table('users').get(req.params.employee_id).run(conn)
     ]);
