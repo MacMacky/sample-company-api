@@ -226,7 +226,7 @@ const createUserRoute = async (req, res) => {
 
 
 const removeUserByHigherUpRoute = async (req, res) => {
-  let conn, employees_that_can_be_remove;
+  let conn;
   try {
 
     /* check if id is provided */
@@ -253,29 +253,20 @@ const removeUserByHigherUpRoute = async (req, res) => {
       return res.send(400, { message: `employee ${id_does_not_exists}` });
     }
     /* extract needed properties */
-    const { role: emp_role } = employee;
     const { role: user_role } = user;
 
-    /* get the list of `roles` that can be removed by query `role`  */
-    employees_that_can_be_remove = rolesToBeModifiedByRole(user_role, "remove");
-    /* ceo =  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* president =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* hr =  ['pm', 'senior developer', 'junior developer'] */
-    /* pm =  ['senior developer', 'junior developer']  */
-    /* senior developer = ['junior developer']  */
-
-    /* check if `employee.role` does not belong to `roles` that can be remove by `users.role` */
-    if (!employees_that_can_be_remove.includes(emp_role)) {
+    /* check if `user.role` is not an `hr`, `president`, and `ceo` */
+    if (!roles.slice(0, 4).includes(user_role) || user_role === 'assistant') {
       return res.send(400, { message: invalid_remove });
     }
 
     /* updating `employee` here */
-    await r.table('users')
+    const { first_error } = await r.table('users')
       .get(req.params.employee_id)
       .delete()
       .run(conn);
 
-    res.send(200);
+    res.send(first_error ? 400 : 200, first_error ? { message: "Unable to delete. Please try again later." } : undefined);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
@@ -382,10 +373,9 @@ const updateUserByHigherUpRoute = async (req, res) => {
     }
 
     /* updating user */
-    await r.table('users').get(req.params.employee_id).update(req.body).run(conn);
+    const { first_error } = await r.table('users').get(req.params.employee_id).update(req.body).run(conn);
 
-    return res.send(200, req.body);
-
+    return res.send(first_error ? 400 : 200, first_error ? { message: "Unable to update. Please try again later." } : req.body);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
