@@ -234,7 +234,8 @@ const getUsersSubordinateRoute = async (req, res) => {
     /* get the list of `roles` that are subordinates by user `role`  */
     subordinates_roles = rolesToBeModifiedByRole(user_role);
 
-    if (!subordinates_roles.includes(sub_role) && user_role !== 'assistant') {
+    /* check if `user.role` is not allowed to view `subordinates.role` or `user.role` is 'assistant' */
+    if (!subordinates_roles.includes(sub_role) || user_role === 'assistant') {
       return res.send(400, { message: 'Your not allowed to view this employee.' });
     }
 
