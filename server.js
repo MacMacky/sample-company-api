@@ -21,7 +21,7 @@ const rolesToBeModifiedByRole = (role, operation = 'update') => {
     }[role.toLowerCase()]
   } else {
     return {
-      "ceo": roles, /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+      "ceo": roles.slice(1), /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
       "president": roles.slice(3), /* [ 'hr', 'pm', 'senior developer', 'junior developer'] */
       "hr": roles.slice(4), /* ['pm', 'senior developer', 'junior developer'] */
       "pm": roles.slice(5), /* ['senior developer', 'junior developer'] */
@@ -79,7 +79,7 @@ const getUsersRoute = async (req, res) => {
 
 
 const loginRoute = async (req, res) => {
-  let conn, roles_to_select, employees, user;
+  let conn, roles_to_select, subordinates, user;
   try {
 
     /* check if login credentials are provided */
@@ -118,14 +118,14 @@ const loginRoute = async (req, res) => {
     /* senior developer = ['junior developer']  */
 
 
-    if (roles_to_select) {
-      employees = await r.table('users')
+    if (roles_to_select && role !== 'assistant') {
+      subordinates = await r.table('users')
         .getAll(...roles_to_select, { index: 'role' })
         .coerceTo('array')
         .run(conn);
     }
 
-    res.send(200, { user, employees });
+    res.send(200, { user, subordinates });
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
@@ -134,7 +134,7 @@ const loginRoute = async (req, res) => {
 }
 
 
-const getUsersByIdRoute = async (req, res) => {
+const getUserByIdRoute = async (req, res) => {
   let conn;
   try {
     /* check if id is provided */
@@ -156,6 +156,50 @@ const getUsersByIdRoute = async (req, res) => {
   }
 }
 
+const getUsersSubordinatesRoute = async (req, res) => {
+  let conn, subordinates = [];
+  try {
+
+    /* check if id is not provided */
+    if (!req.params.id) {
+      return res.send(400, { message: invalid_id });
+    }
+
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
+
+    /* get `user` details from db */
+    const user = await r.table('users')
+      .get(req.params.id)
+      .run(conn);
+
+
+    /* check if user does not exists */
+    if (!user) {
+      return res.send(400, { message: 'user does not exists' })
+    }
+
+    /* extract role property */
+    const { role } = user;
+
+    /* get subordinates by this `role` */
+    const subordinates_roles = rolesToBeModifiedByRole(role, 'remove');
+
+    /* check if `role` is not assistant or `subordinates_roles` has a value */
+    if (subordinates_roles && role !== 'assistant') {
+      subordinates = await r.table('users')
+        .getAll(...subordinates_roles, { index: 'role' })
+        .coerceTo('array')
+        .run(conn);
+    }
+
+    res.send(200, { subordinates })
+  } catch (error) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
+}
 
 const createUserRoute = async (req, res) => {
   let conn, user;
@@ -387,15 +431,17 @@ const updateUserByHigherUpRoute = async (req, res) => {
 
 
 
+
 server.use(restify.plugins.bodyParser());
 server.use(restify.plugins.queryParser());
 server.post('/api/login', loginRoute);
 server.get('/api/users', getUsersRoute);
-server.get('/api/users/:id', getUsersByIdRoute);
+server.get('/api/users/:id', getUserByIdRoute);
+server.get('/api/users/:id/subordinates', getUsersSubordinatesRoute)
 server.post('/api/users', createUserRoute);
 server.put('/api/users/:id', updateUserRoute);
-server.put('/api/users/:id/employees/:employee_id', updateUserByHigherUpRoute);
-server.del('/api/users/:id/employees/:employee_id', removeUserByHigherUpRoute);
+server.put('/api/users/:id/subordinates/:employee_id', updateUserByHigherUpRoute);
+server.del('/api/users/:id/subordinates/:employee_id', removeUserByHigherUpRoute);
 server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
 server.put('*', (req, res) => res.send(404));
