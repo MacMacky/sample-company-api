@@ -451,6 +451,11 @@ const updateUserByHigherUpRoute = async (req, res) => {
     const { role: sub_role, employment_status: sub_status } = subordinate;
     const { role: user_role, employment_status: status } = user;
 
+    /* check if `user.role` is a junior developer */
+    if (user_role === 'junior developer') {
+      return res.send(400, { message: invalid_update })
+    }
+
     /* check if `user` employment_status is `deactivated` */
     if (status === 'deactivated') {
       return res.send(400, { message: 'Your account has been deactivated.' });
