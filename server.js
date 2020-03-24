@@ -39,10 +39,8 @@ const id_does_not_exists = 'id does not exists.';
 const internal_error = 'Internal Server Error';
 const invalid_update = `you don't have permission to update this employee.`;
 const invalid_remove = `you don't have permission to remove this employee.`
+const deactivated_acc = 'Your account has been deactivated.';
 /* Responses End */
-
-
-
 
 
 const getUsersRoute = async (req, res) => {
@@ -77,7 +75,6 @@ const getUsersRoute = async (req, res) => {
   }
 }
 
-
 const loginRoute = async (req, res) => {
   let conn, roles_to_select, subordinates, user;
   try {
@@ -100,14 +97,18 @@ const loginRoute = async (req, res) => {
       return res.send(400, { message: 'user does not exists' });
     }
 
-    const { password } = user;
+    /* extract needed properties */
+    const { role, password, employment_status } = user;
+
+    /* check if user's `employment_status` is `deactivated` */
+    if (employment_status === 'deactivated') {
+      return res.send(400, { message: deactivated_acc });
+    }
+
     /* check if password is correct */
     if (password !== req.body.password) {
       return res.send(400, { message: 'wrong password. please try again.' });
     }
-
-    /* get role for the specific user */
-    const { role } = user;
 
     roles_to_select = rolesToBeModifiedByRole(role, 'remove');
     /* ceo =  ['assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
@@ -131,7 +132,6 @@ const loginRoute = async (req, res) => {
     conn && conn.close();
   }
 }
-
 
 const getUserByIdRoute = async (req, res) => {
   let conn;
@@ -176,8 +176,13 @@ const getUsersSubordinatesRoute = async (req, res) => {
       return res.send(400, { message: 'user does not exists' })
     }
 
-    /* extract role property */
-    const { role } = user;
+    /* extract needed properties */
+    const { role, employment_status } = user;
+
+    /* check if user's `employment_status` is `deactivated` */
+    if (employment_status === 'deactivated') {
+      return res.send(400, { message: deactivated_acc });
+    }
 
     /* get subordinates by this `role` */
     const subordinates_roles = rolesToBeModifiedByRole(role, 'remove');
@@ -229,7 +234,12 @@ const getUsersSubordinateRoute = async (req, res) => {
 
     /* extract needed properties */
     const { role: sub_role } = subordinate;
-    const { role: user_role } = user;
+    const { role: user_role, employment_status } = user;
+
+    /* check if user's `employment_status` is `deactivated` */
+    if (employment_status === 'deactivated') {
+      return res.send(400, { message: deactivated_acc });
+    }
 
     /* get the list of `roles` that are subordinates by user `role`  */
     subordinates_roles = rolesToBeModifiedByRole(user_role);
@@ -318,7 +328,6 @@ const createUserRoute = async (req, res) => {
   }
 }
 
-
 const removeUserByHigherUpRoute = async (req, res) => {
   let conn, subordinates;
   try {
@@ -353,7 +362,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
 
     /* check if `user` employment_status is `deactivated` */
     if (status === 'deactivated') {
-      return res.send(400, { message: 'Your account has been deactivated.' });
+      return res.send(400, { message: deactivated_acc });
     }
 
     /* check if `subordinate` employment_status is `deactivated` */
@@ -385,7 +394,6 @@ const removeUserByHigherUpRoute = async (req, res) => {
     conn && conn.close();
   }
 }
-
 
 const updateUserRoute = async (req, res) => {
   let conn;
@@ -458,7 +466,7 @@ const updateUserByHigherUpRoute = async (req, res) => {
 
     /* check if `user` employment_status is `deactivated` */
     if (status === 'deactivated') {
-      return res.send(400, { message: 'Your account has been deactivated.' });
+      return res.send(400, { message: deactivated_acc });
     }
 
     /* check if `subordinate` employment_status is `deactivated` */
@@ -511,9 +519,6 @@ const updateUserByHigherUpRoute = async (req, res) => {
   }
 }
 
-
-
-
 server.use(restify.plugins.bodyParser());
 server.use(restify.plugins.queryParser());
 server.post('/api/login', loginRoute);
@@ -530,7 +535,6 @@ server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
 server.put('*', (req, res) => res.send(404));
 server.del('*', (req, res) => res.send(404));
-
 
 const indexCreate = async (con, index_name, table_name = 'users') => {
   return r.table(table_name).indexCreate(index_name).run(con);
