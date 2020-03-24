@@ -119,7 +119,7 @@ const loginRoute = async (req, res) => {
     if (roles_to_select && role !== 'assistant') {
       subordinates = await r.table('users')
         .getAll(...roles_to_select, { index: 'role' })
-        .filter({ employment_status: 'activated' })
+        .filter({ employment_status: 'active' })
         .coerceTo('array')
         .run(conn);
     }
@@ -186,7 +186,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
     if (subordinates_roles && role !== 'assistant') {
       subordinates = await r.table('users')
         .getAll(...subordinates_roles, { index: 'role' })
-        .filter({ employment_status: 'activated' })
+        .filter({ employment_status: 'active' })
         .coerceTo('array')
         .run(conn);
     }
@@ -303,7 +303,7 @@ const createUserRoute = async (req, res) => {
 
     return res.send(first_error ? 400 : 200,
       first_error ? { message: 'Cant insert data. Please try again later.' }
-        : { ...req.body, role: req.body.role.toLowerCase(), id: generated_keys[0] });
+        : { ...req.body, role: req.body.role.toLowerCase(), id: generated_keys[0], employment_status: 'active' });
 
   } catch (e) {
     res.send(500, { message: internal_error });
@@ -314,7 +314,7 @@ const createUserRoute = async (req, res) => {
 
 
 const removeUserByHigherUpRoute = async (req, res) => {
-  let conn;
+  let conn, subordinates;
   try {
 
     /* check if id is provided */
@@ -343,7 +343,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
 
     /* extract needed properties */
     const { role: user_role, employment_status: status } = user;
-    const { employment_status: sub_status } = subordinate;
+    const { employment_status: sub_status, role: sub_role } = subordinate;
 
     /* check if `user` employment_status is `deactivated` */
     if (status === 'deactivated') {
@@ -355,8 +355,14 @@ const removeUserByHigherUpRoute = async (req, res) => {
       return res.send(400, { message: `You're subordinate's account has already been deactivated.` });
     }
 
+    subordinates = rolesToBeModifiedByRole(user_role, 'remove');
+
+    if (!subordinates.includes(sub_role)) {
+      return res.send(400, { message: invalid_remove });
+    }
+
     /* check if `user.role` is not an `hr`, `president`, and `ceo` */
-    if (!roles.slice(0, 4).includes(user_role) || user_role === 'assistant') {
+    if (!roles.slice(0, 4).includes(user_role) && user_role !== 'assistant') {
       return res.send(400, { message: invalid_remove });
     }
 
