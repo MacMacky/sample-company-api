@@ -21,7 +21,7 @@ const rolesToBeModifiedByRole = (role, operation = 'update') => {
     }[role.toLowerCase()]
   } else {
     return {
-      "ceo": roles.slice(1), /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
+      "ceo": roles.slice(1), /*  ['assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
       "president": roles.slice(3), /* [ 'hr', 'pm', 'senior developer', 'junior developer'] */
       "hr": roles.slice(4), /* ['pm', 'senior developer', 'junior developer'] */
       "pm": roles.slice(5), /* ['senior developer', 'junior developer'] */
