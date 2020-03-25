@@ -522,16 +522,16 @@ const updateUserByHigherUpRoute = async (req, res) => {
 
 server.use(restify.plugins.bodyParser());
 server.use(restify.plugins.queryParser());
-server.post('/api/login', loginRoute);
-server.get('/api/users', getUsersRoute);
-server.get('/api/users/:id', getUserByIdRoute);
-server.get('/api/users/:id/subordinates', getUsersSubordinatesRoute);
-server.get('/api/users/:id/subordinates/:subordinate_id', getUsersSubordinateRoute);
-server.post('/api/users', createUserRoute);
-server.put('/api/users/:id', updateUserRoute);
-server.put('/api/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
-server.del('/api/users/:id/subordinates/:subordinate_id', removeUserByHigherUpRoute);
-server.post('/api/logout', (req, res) => res.send(200, { is_auth: false }));
+server.post('/login', loginRoute);
+server.get('/users', getUsersRoute);
+server.get('/users/:id', getUserByIdRoute);
+server.get('/users/:id/subordinates', getUsersSubordinatesRoute);
+server.get('/users/:id/subordinates/:subordinate_id', getUsersSubordinateRoute);
+server.post('/users', createUserRoute);
+server.put('/users/:id', updateUserRoute);
+server.put('/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
+server.del('/users/:id/subordinates/:subordinate_id', removeUserByHigherUpRoute);
+server.post('/logout', (req, res) => res.send(200, { is_auth: false }));
 server.get('*', (req, res) => res.send(404));
 server.post('*', (req, res) => res.send(404));
 server.put('*', (req, res) => res.send(404));
