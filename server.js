@@ -187,7 +187,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
     /* get subordinates by this `role` */
     const subordinates_roles = rolesToBeModifiedByRole(role, 'remove');
 
-    /* check if `role` is not assistant or `subordinates_roles` has a value */
+    /* check if `role` is not assistant and `subordinates_roles` has a value */
     if (subordinates_roles && role !== 'assistant') {
       subordinates = await r.table('users')
         .getAll(...subordinates_roles, { index: 'role' })
@@ -307,7 +307,8 @@ const createUserRoute = async (req, res) => {
         .coerceTo('array')
         .run(conn);
 
-      if (user && (user.role === 'president' || user.role === 'ceo')) {
+      if (user && user.employment_status == 'active'
+        && (user.role === 'president' || user.role === 'ceo')) {
         return res.send(400, { message: `role for ${user.role} is already taken. please try another one.` });
       }
     }
