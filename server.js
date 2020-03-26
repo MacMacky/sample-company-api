@@ -38,18 +38,27 @@ const getUsersRoute = async (req, res) => {
       if (!roles.includes(req.query.role.toLowerCase())) {
         return res.send(400, { message: invalid_role });
       }
-      /* if role is valid get data from `users` table */
+      /* if role is valid get data from `users` table based on the query `role` */
       users = await r.table('users')
-        .getAll(req.query.role.toLowerCase(), { index: 'role' }).coerceTo('array')
+        .eqJoin('roleID', r.table('organization'), { index: 'roleID' })
+        .without({ right: 'id' })
+        .zip()
+        .filter(r.row('jobRole').eq(req.query.role.toLowerCase()))
+        .coerceTo('array')
         .run(conn);
+
     } else {
       users = await r.table('users')
-        .coerceTo('array')
+        .eqJoin('roleID', r.table('organization'), { index: 'roleID' })
+        .without({ right: 'id' }) /* don't include the field `id` on the table `organization` when joining */
+        .zip().coerceTo('array')
         .run(conn);
     }
 
     res.send(200, { users });
   } catch (e) {
+    console.log(e);
+
     res.send(500, { message: internal_error });
   } finally {
     conn && conn.close();
@@ -290,13 +299,16 @@ const createUserRoute = async (req, res) => {
     if (req.body.role.toLowerCase() === 'president' || req.body.role.toLowerCase() === 'ceo') {
 
       [user] = await r.table('users')
-        .getAll(req.body.role.toLowerCase(), { index: 'role' })
+        .eqJoin('roleID', r.table('organization'), { index: 'roleID' })
+        .without({ right: 'id' })
+        .zip()
+        .filter(r.row('jobRole').eq(req.body.role.toLowerCase()))
         .coerceTo('array')
         .run(conn);
 
       if (user && user.employment_status == 'active'
-        && (user.role === 'president' || user.role === 'ceo')) {
-        return res.send(400, { message: `role for ${user.role} is already taken. please try another one.` });
+        && (user.jobRole === 'president' || user.jobRole === 'ceo')) {
+        return res.send(400, { message: `role for ${user.jobRole} is already taken. please try another one.` });
       }
     }
 
