@@ -526,6 +526,25 @@ const updateUserByHigherUpRoute = async (req, res) => {
   }
 }
 
+const getRolesRoute = async (req, res) => {
+  let conn;
+  try {
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
+
+    /* get roles from table `organization` without field `id` */
+    const roles = await r.table('organization')
+      .without('id').coerceTo('array')
+      .run(conn);
+
+    res.send(200, { roles });
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
+}
+
 server.use(restify.plugins.bodyParser());
 server.use(restify.plugins.queryParser());
 server.post('/login', loginRoute);
@@ -534,6 +553,7 @@ server.get('/users/:id', getUserByIdRoute);
 server.get('/users/:id/subordinates', getUsersSubordinatesRoute);
 server.get('/users/:id/subordinates/:subordinate_id', getUsersSubordinateRoute);
 server.post('/users', createUserRoute);
+server.get('/roles', getRolesRoute);
 server.put('/users/:id', updateUserRoute);
 server.put('/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
 server.del('/users/:id/subordinates/:subordinate_id', removeUserByHigherUpRoute);
