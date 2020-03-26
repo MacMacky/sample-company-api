@@ -5,30 +5,9 @@ const { all } = require('bluebird');
 
 const port = 3000;
 const server = restify.createServer();
-const roles = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'];
-
 
 /* Helpers */
 const isString = val => typeof val === 'string';
-const rolesToBeModifiedByRole = (role, operation = 'update') => {
-  if (operation === 'update') {
-    return {
-      "ceo": roles, /*  ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-      "president": roles.slice(2), /* ['president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-      "hr": roles.slice(3), /* [hr', 'pm', 'senior developer', 'junior developer'] */
-      "pm": roles.slice(4), /* ['pm', 'senior developer', 'junior developer'] */
-      "senior developer": roles.slice(5) /* ['senior developer', 'junior developer'] */
-    }[role.toLowerCase()]
-  } else {
-    return {
-      "ceo": roles.slice(1), /*  ['assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-      "president": roles.slice(3), /* [ 'hr', 'pm', 'senior developer', 'junior developer'] */
-      "hr": roles.slice(4), /* ['pm', 'senior developer', 'junior developer'] */
-      "pm": roles.slice(5), /* ['senior developer', 'junior developer'] */
-      "senior developer": roles.slice(6), /* ['junior developer'] */
-    }[role.toLowerCase()]
-  }
-}
 /* Helpers End */
 
 /* Response */
@@ -38,36 +17,38 @@ const invalid_id = 'Invalid id!';
 const id_does_not_exists = 'id does not exists.';
 const internal_error = 'Internal Server Error';
 const invalid_update = `you don't have permission to update this employee.`;
-const invalid_remove = `you don't have permission to remove this employee.`
+const invalid_remove = `you don't have permission to deactivate this employee.`
 const deactivated_acc = 'Your account has been deactivated.';
 /* Responses End */
 
 
 const getUsersRoute = async (req, res) => {
-  let conn, subordinates;
+  let conn, users;
   try {
 
     /* initialize connection here and explicitly specify database name */
     conn = await r.connect({ db: 'test' });
 
-    /* check if query `role` is in roles */
-    if (req.query.role && !roles.includes(req.query.role.toLowerCase())) {
-      return res.send(400, { message: invalid_role });
-    }
-
     /* check if query `role` has a value and use that value for the index */
     if (req.query.role) {
-      subordinates = await r.table('users')
-        .getAll(req.query.role.toLowerCase(), { index: 'role' })
-        .coerceTo('array')
+      const roles = await r.table('organization')
+        .map(d => d('jobRole')).coerceTo('array')
+        .run(conn);
+      /* check if query `role` is in not roles */
+      if (!roles.includes(req.query.role.toLowerCase())) {
+        return res.send(400, { message: invalid_role });
+      }
+      /* if role is valid get data from `users` table */
+      users = await r.table('users')
+        .getAll(req.query.role.toLowerCase(), { index: 'role' }).coerceTo('array')
         .run(conn);
     } else {
-      subordinates = await r.table('users')
+      users = await r.table('users')
         .coerceTo('array')
         .run(conn);
     }
 
-    res.send(200, { subordinates });
+    res.send(200, { users });
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
@@ -76,7 +57,7 @@ const getUsersRoute = async (req, res) => {
 }
 
 const loginRoute = async (req, res) => {
-  let conn, roles_to_select, subordinates, user;
+  let conn, item, subordinates, user;
   try {
 
     /* check if login credentials are provided */
@@ -110,18 +91,14 @@ const loginRoute = async (req, res) => {
       return res.send(400, { message: 'wrong password. please try again.' });
     }
 
-    roles_to_select = rolesToBeModifiedByRole(role, 'remove');
-    /* ceo =  ['assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* president =  [ 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* hr =  ['pm', 'senior developer', 'junior developer'] */
-    /* pm =  ['senior developer', 'junior developer']  */
-    /* senior developer = ['junior developer']  */
+    [item] = await r.table('organization')
+      .getAll(role, { index: 'jobRole' }).coerceTo('array')
+      .run(conn)
 
-    if (roles_to_select && role !== 'assistant') {
+    if (item && role !== 'assistant') {
       subordinates = await r.table('users')
-        .getAll(...roles_to_select, { index: 'role' })
-        .filter({ employment_status: 'active' })
-        .coerceTo('array')
+        .getAll(...item.subordinateRoleIds, { index: 'roleID' })
+        .filter({ employment_status: 'active' }).coerceTo('array')
         .run(conn);
     }
 
@@ -185,12 +162,14 @@ const getUsersSubordinatesRoute = async (req, res) => {
     }
 
     /* get subordinates by this `role` */
-    const subordinates_roles = rolesToBeModifiedByRole(role, 'remove');
+    const [item] = await r.table('organization')
+      .getAll(role, { index: 'jobRole' }).coerceTo('array')
+      .run(conn)
 
     /* check if `role` is not assistant and `subordinates_roles` has a value */
-    if (subordinates_roles && role !== 'assistant') {
+    if (item && role !== 'assistant') {
       subordinates = await r.table('users')
-        .getAll(...subordinates_roles, { index: 'role' })
+        .getAll(...item.subordinateRoleIds, { index: 'roleID' })
         .filter({ employment_status: 'active' })
         .coerceTo('array')
         .run(conn);
@@ -205,7 +184,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
 }
 
 const getUsersSubordinateRoute = async (req, res) => {
-  let conn, subordinates_roles;
+  let conn;
   try {
 
     /* check if ids are not provided */
@@ -233,7 +212,7 @@ const getUsersSubordinateRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role: sub_role } = subordinate;
+    const { roleID: sub_role_id } = subordinate;
     const { role: user_role, employment_status } = user;
 
     /* check if user's `employment_status` is `deactivated` */
@@ -242,15 +221,19 @@ const getUsersSubordinateRoute = async (req, res) => {
     }
 
     /* get the list of `roles` that are subordinates by user `role`  */
-    subordinates_roles = rolesToBeModifiedByRole(user_role);
+    const [item] = await r.table('organization')
+      .getAll(role, { index: 'jobRole' }).coerceTo('array')
+      .run(conn)
 
-    /* `subordinates_roles` is undefined when `user_role` is `junior developer` */
-    if (!subordinates_roles) {
+
+    /* `item` is undefined when `user_role` is `junior developer` */
+    if (!item) {
       return res.send(400, { message: 'Your not allowed to view this employee.' });
     }
 
+    const { subordinateRoleIds } = item;
     /* check if `user.role` is not allowed to view `subordinates.role` or `user.role` is 'assistant' */
-    if (!subordinates_roles.includes(sub_role) || user_role === 'assistant') {
+    if (!subordinateRoleIds.includes(sub_role_id) || user_role === 'assistant') {
       return res.send(400, { message: 'Your not allowed to view this employee.' });
     }
 
@@ -281,13 +264,17 @@ const createUserRoute = async (req, res) => {
       return res.send(400, { message: invalid_data });
     }
 
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
+
+    const roles = await r.table('organization')
+      .map(d => d('jobRole')).coerceTo('array')
+      .run(conn);
+
     /* check if role is valid */
     if (!req.body.role || !isString(req.body.role) || !roles.includes(req.body.role.toLowerCase())) {
       return res.send(400, { message: invalid_role });
     }
-
-    /* initialize connection here and explicitly specify database name */
-    conn = await r.connect({ db: 'test' });
 
     [user] = await r.table('users')
       .getAll(req.body.user_name, { index: 'user_name' })
@@ -330,7 +317,7 @@ const createUserRoute = async (req, res) => {
 }
 
 const removeUserByHigherUpRoute = async (req, res) => {
-  let conn, subordinates;
+  let conn, item;
   try {
 
     /* check if id is provided */
@@ -359,7 +346,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
 
     /* extract needed properties */
     const { role: user_role, employment_status: status } = user;
-    const { employment_status: sub_status, role: sub_role } = subordinate;
+    const { employment_status: sub_status, roleID: sub_role_id } = subordinate;
 
     /* check if `user` employment_status is `deactivated` */
     if (status === 'deactivated') {
@@ -371,14 +358,19 @@ const removeUserByHigherUpRoute = async (req, res) => {
       return res.send(400, { message: `You're subordinate's account has already been deactivated.` });
     }
 
-    subordinates = rolesToBeModifiedByRole(user_role, 'remove');
-
-    if (!subordinates.includes(sub_role)) {
+    /* check if `user.role` is an `assistant` or `junior developer`*/
+    if (user_role === 'assistant' || user_role === 'junior developer') {
       return res.send(400, { message: invalid_remove });
     }
 
-    /* check if `user.role` is not an `hr`, `president`, and `ceo` */
-    if (!roles.slice(0, 4).includes(user_role) && user_role !== 'assistant') {
+    [item] = await r.table('organization')
+      .getAll(user_role, { index: 'jobRole' }).coerceTo('array')
+      .run(conn);
+
+    const { subordinateRoleIds } = item;
+
+    /* check if subordinates `roleID` is not included in users `subordinatesRolesIds` */
+    if (!subordinateRoleIds.includes(sub_role_id)) {
       return res.send(400, { message: invalid_remove });
     }
 
@@ -405,15 +397,17 @@ const updateUserRoute = async (req, res) => {
       return res.send(400, { message: invalid_id });
     }
 
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
+
+    const roles = await r.table('organization')
+      .map(d => d('jobRole')).coerceTo('array')
+      .run(conn);
 
     /* check if `role` is provided and is not valid */
     if (req.body.role && !roles.includes(req.body.role.toLowerCase())) {
       return res.send(400, { message: invalid_role });
     }
-
-    /* initialize connection here and explicitly specify database name */
-    conn = await r.connect({ db: 'test' });
-
 
     /* get `skipped` property to check if the user `id` exists */
     const { skipped } = await r.table('users')
@@ -430,7 +424,7 @@ const updateUserRoute = async (req, res) => {
 }
 
 const updateUserByHigherUpRoute = async (req, res) => {
-  let conn, subordinates_that_can_be_updated;
+  let conn, item;
   try {
     /* check if `id` or `subordinate_id` is provided */
     if (!req.params.id || !req.params.subordinate_id) {
@@ -457,11 +451,11 @@ const updateUserByHigherUpRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role: sub_role, employment_status: sub_status } = subordinate;
+    const { role: sub_role, employment_status: sub_status, roleID: sub_role_id } = subordinate;
     const { role: user_role, employment_status: status } = user;
 
     /* check if `user.role` is a junior developer */
-    if (user_role === 'junior developer') {
+    if (user_role === 'junior developer' || user_role === 'assistant') {
       return res.send(400, { message: invalid_update })
     }
 
@@ -470,22 +464,25 @@ const updateUserByHigherUpRoute = async (req, res) => {
       return res.send(400, { message: deactivated_acc });
     }
 
-    /* check if `subordinate` employment_status is `deactivated` */
-    if (sub_status === 'deactivated') {
-      return res.send(400, { message: `You're subordinate's account has already been deactivated.` });
-    }
+    // /* check if `subordinate` employment_status is `deactivated` */
+    // if (sub_status === 'deactivated') {
+    //   return res.send(400, { message: `You're subordinate's account has already been deactivated.` });
+    // }
 
     /* get the list of `roles` that can be updated by users `role`  */
-    subordinates_that_can_be_updated = rolesToBeModifiedByRole(user_role);
+    [item] = await r.table('organization')
+      .getAll(user_role, { index: 'jobRole' }).coerceTo('array')
+      .run(conn)
     /* ceo = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
     /* president = ['president', 'hr', 'pm', 'senior developer', 'junior developer']  */
     /* hr = [hr', 'pm', 'senior developer', 'junior developer'] */
     /* pm = ['pm', 'senior developer', 'junior developer'] */
     /* senior developer = ['senior developer', 'junior developer'] */
 
+    const { subordinateRoleIds } = item;
 
     /* check if `employee.role` does not belong to `roles` that can be remove by `user` */
-    if (!subordinates_that_can_be_updated.includes(sub_role) || user_role === 'assistant') {
+    if (!subordinateRoleIds.includes(sub_role_id)) {
       return res.send(400, { message: invalid_update })
     }
 
@@ -512,7 +509,9 @@ const updateUserByHigherUpRoute = async (req, res) => {
       !req.body.role ? req.body : { ...req.body, role: req.body.role.toLowerCase() }
     ).run(conn);
 
-    return res.send(first_error ? 400 : 200, first_error ? { message: "Unable to update. Please try again later." } : req.body);
+    return res.send(first_error ? 400 : 200,
+      first_error ? { message: "Unable to update. Please try again later." } : req.body);
+
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
