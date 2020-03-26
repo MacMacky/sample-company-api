@@ -300,14 +300,21 @@ const createUserRoute = async (req, res) => {
       }
     }
 
-    const { first_error, generated_keys } = await r.table('users')
-      .insert({ ...req.body, role: req.body.role.toLowerCase(), employment_status: 'active' })
+    const [item] = await r.table('organization')
+      .getAll(req.body.role.toLowerCase(), { index: 'jobRole' })
+      .coerceTo('array')
       .run(conn);
 
+    /* extract `roleID` from item */
+    const { roleID } = item;
+
+    const { first_error, generated_keys } = await r.table('users')
+      .insert({ ...req.body, role: req.body.role.toLowerCase(), employment_status: 'active', roleID })
+      .run(conn);
 
     return res.send(first_error ? 400 : 200,
       first_error ? { message: 'Cant insert data. Please try again later.' }
-        : { ...req.body, role: req.body.role.toLowerCase(), id: generated_keys[0] });
+        : { ...req.body, role: req.body.role.toLowerCase(), id: generated_keys[0], roleID });
 
   } catch (e) {
     res.send(500, { message: internal_error });
