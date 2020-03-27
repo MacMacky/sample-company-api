@@ -40,7 +40,7 @@ const getUsersRoute = async (req, res) => {
       }
       /* if role is valid get data from `users` table based on the query `role` */
       users = await r.table('users')
-        .eqJoin('roleID', r.table('organization'), { index: 'roleID' })
+        .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
         .without({ right: 'id' })
         .zip()
         .filter(r.row('job_role').eq(req.query.role.toLowerCase()))
@@ -49,7 +49,7 @@ const getUsersRoute = async (req, res) => {
 
     } else {
       users = await r.table('users')
-        .eqJoin('roleID', r.table('organization'), { index: 'roleID' })
+        .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
         .without({ right: 'id' }) /* don't include the field `id` on the table `organization` when joining */
         .zip().coerceTo('array')
         .run(conn);
@@ -106,7 +106,7 @@ const loginRoute = async (req, res) => {
 
     if (item && role !== 'assistant') {
       subordinates = await r.table('users')
-        .getAll(...item.subordinateRoleIds, { index: 'roleID' })
+        .getAll(...item.subordinateRoleIds, { index: 'role_id' })
         .filter({ employment_status: 'active' }).coerceTo('array')
         .run(conn);
     }
@@ -163,7 +163,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { roleID, employment_status } = user;
+    const { role_id, employment_status } = user;
 
     /* check if user's `employment_status` is `deactivated` */
     if (employment_status === 'deactivated') {
@@ -172,7 +172,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
 
     /* get subordinates by this `role` */
     const [item] = await r.table('organization')
-      .getAll(roleID, { index: 'roleID' }).coerceTo('array')
+      .getAll(role_id, { index: 'role_id' }).coerceTo('array')
       .run(conn)
 
     /* */
@@ -183,7 +183,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
     if (length && job_role !== 'assistant') {
 
       subordinates = await r.table('users')
-        .getAll(...subordinateRoleIds, { index: 'roleID' })
+        .getAll(...subordinateRoleIds, { index: 'role_id' })
         .filter({ employment_status: 'active' })
         .coerceTo('array')
         .run(conn);
@@ -227,7 +227,7 @@ const getUsersSubordinateRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { roleID: sub_role_id } = subordinate;
+    const { role_id: sub_role_id } = subordinate;
     const { role: user_role, employment_status } = user;
 
     /* check if user's `employment_status` is `deactivated` */
@@ -305,7 +305,7 @@ const createUserRoute = async (req, res) => {
     if (req.body.role.toLowerCase() === 'president' || req.body.role.toLowerCase() === 'ceo') {
 
       [user] = await r.table('users')
-        .eqJoin('roleID', r.table('organization'), { index: 'roleID' })
+        .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
         .without({ right: 'id' })
         .zip()
         .filter(r.row('job_role').eq(req.body.role.toLowerCase()))
@@ -323,16 +323,16 @@ const createUserRoute = async (req, res) => {
       .coerceTo('array')
       .run(conn);
 
-    /* extract `roleID` from item */
-    const { roleID } = item;
+    /* extract `role_id` from item */
+    const { role_id } = item;
 
     const { first_error, generated_keys } = await r.table('users')
-      .insert({ ...req.body, role: req.body.role.toLowerCase(), employment_status: 'active', roleID })
+      .insert({ ...req.body, role: req.body.role.toLowerCase(), employment_status: 'active', role_id })
       .run(conn);
 
     return res.send(first_error ? 400 : 200,
       first_error ? { message: 'Cant insert data. Please try again later.' }
-        : { ...req.body, role: req.body.role.toLowerCase(), id: generated_keys[0], roleID });
+        : { ...req.body, role: req.body.role.toLowerCase(), id: generated_keys[0], role_id });
 
   } catch (e) {
     res.send(500, { message: internal_error });
@@ -371,7 +371,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
 
     /* extract needed properties */
     const { role: user_role, employment_status: status } = user;
-    const { employment_status: sub_status, roleID: sub_role_id } = subordinate;
+    const { employment_status: sub_status, role_id: sub_role_id } = subordinate;
 
     /* check if `user` employment_status is `deactivated` */
     if (status === 'deactivated') {
@@ -394,7 +394,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
 
     const { subordinateRoleIds } = item;
 
-    /* check if subordinates `roleID` is not included in users `subordinatesRolesIds` */
+    /* check if subordinates `role_id` is not included in users `subordinatesRolesIds` */
     if (!subordinateRoleIds.includes(sub_role_id)) {
       return res.send(400, { message: invalid_remove });
     }
@@ -476,7 +476,7 @@ const updateUserByHigherUpRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role: sub_role, employment_status: sub_status, roleID: sub_role_id } = subordinate;
+    const { role: sub_role, employment_status: sub_status, role_id: sub_role_id } = subordinate;
     const { role: user_role, employment_status: status } = user;
 
     /* check if `user.role` is a junior developer */
@@ -604,7 +604,7 @@ server.listen(port, async () => {
         .catch(({ msg }) => console.log(msg))
       );
 
-    ['job_role', 'roleID'].filter(item => !org_index_list.includes(item))
+    ['job_role', 'role_id'].filter(item => !org_index_list.includes(item))
       .forEach(index_name => indexCreate(conn, index_name)
         .then(console.log)
         .catch(({ msg }) => console.log(msg))
