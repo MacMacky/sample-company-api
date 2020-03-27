@@ -598,14 +598,14 @@ server.listen(port, async () => {
     ]);
 
     /* create indexes if they don't exist already */
-    ['role', 'user_name'].filter(item => !users_index_list.includes(item))
+    ['role', 'user_name', 'role_id'].filter(item => !users_index_list.includes(item))
       .forEach(index_name => indexCreate(conn, index_name)
         .then(console.log)
         .catch(({ msg }) => console.log(msg))
       );
 
     ['job_role', 'role_id'].filter(item => !org_index_list.includes(item))
-      .forEach(index_name => indexCreate(conn, index_name)
+      .forEach(index_name => indexCreate(conn, index_name, 'organization')
         .then(console.log)
         .catch(({ msg }) => console.log(msg))
       )
