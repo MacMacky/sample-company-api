@@ -163,7 +163,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role, employment_status } = user;
+    const { roleID, employment_status } = user;
 
     /* check if user's `employment_status` is `deactivated` */
     if (employment_status === 'deactivated') {
@@ -172,13 +172,18 @@ const getUsersSubordinatesRoute = async (req, res) => {
 
     /* get subordinates by this `role` */
     const [item] = await r.table('organization')
-      .getAll(role, { index: 'jobRole' }).coerceTo('array')
+      .getAll(roleID, { index: 'roleID' }).coerceTo('array')
       .run(conn)
 
+    /* */
+    const { jobRole, subordinateRoleIds } = item;
+    const { length } = subordinateRoleIds;
+
     /* check if `role` is not assistant and `subordinates_roles` has a value */
-    if (item && role !== 'assistant') {
+    if (length && jobRole !== 'assistant') {
+
       subordinates = await r.table('users')
-        .getAll(...item.subordinateRoleIds, { index: 'roleID' })
+        .getAll(...subordinateRoleIds, { index: 'roleID' })
         .filter({ employment_status: 'active' })
         .coerceTo('array')
         .run(conn);
@@ -186,6 +191,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
 
     res.send(200, { subordinates })
   } catch (error) {
+    // console.log(error);
     res.send(500, { message: internal_error });
   } finally {
     conn && conn.close();
@@ -585,13 +591,24 @@ server.listen(port, async () => {
     /* initialize connection here and explicitly specify database name */
     conn = await r.connect({ db: 'test' });
 
-    const indexes_made = await r.table('users').indexList().run(conn);
+
+    const [users_index_list, org_index_list] = await all([
+      r.table('users').indexList().run(conn),
+      r.table('organization').indexList().run(conn)
+    ]);
+
     /* create indexes if they don't exist already */
-    ['role', 'user_name'].filter(item => !indexes_made.includes(item))
+    ['role', 'user_name'].filter(item => !users_index_list.includes(item))
       .forEach(index_name => indexCreate(conn, index_name)
         .then(console.log)
         .catch(({ msg }) => console.log(msg))
       );
+
+    ['jobRole', 'roleID'].filter(item => !org_index_list.includes(item))
+      .forEach(index_name => indexCreate(conn, index_name)
+        .then(console.log)
+        .catch(({ msg }) => console.log(msg))
+      )
 
   } catch (e) {
     console.log(e);
