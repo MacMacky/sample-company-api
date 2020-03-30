@@ -348,7 +348,7 @@ const createUserRoute = async (req, res) => {
 }
 
 const removeUserByHigherUpRoute = async (req, res) => {
-  let conn, item;
+  let conn;
   try {
 
     /* check if id is provided */
@@ -423,7 +423,7 @@ const updateUserRoute = async (req, res) => {
   let conn;
   try {
 
-    /* check if id is provided */
+    /* check if id is not provided */
     if (!req.params.id) {
       return res.send(400, { message: invalid_id });
     }
@@ -432,7 +432,8 @@ const updateUserRoute = async (req, res) => {
     conn = await r.connect({ db: 'test' });
 
     const roles = await r.table('organization')
-      .map(r.row('job_role')).coerceTo('array')
+      .map(r.row('job_role'))
+      .coerceTo('array')
       .run(conn);
 
     /* check if `role` is provided and is not valid */
@@ -635,6 +636,25 @@ const createRolesRoute = async (req, res) => {
   }
 }
 
+
+const updateRolesRoute = async (req, res) => {
+  let conn;
+  try {
+
+    /* check if id is not provided */
+    if (!req.params.id) {
+      return res.send(400, { message: invalid_id });
+    }
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' })
+
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
+}
+
 server.use(restify.plugins.bodyParser());
 server.use(restify.plugins.queryParser());
 server.post('/login', loginRoute);
@@ -645,6 +665,7 @@ server.get('/users/:id/subordinates/:subordinate_id', getUsersSubordinateRoute);
 server.post('/users', createUserRoute);
 server.get('/roles', getRolesRoute);
 server.post('/roles', createRolesRoute);
+server.put('/roles/:id', updateRolesRoute);
 server.put('/users/:id', updateUserRoute);
 server.put('/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
 server.del('/users/:id/subordinates/:subordinate_id', removeUserByHigherUpRoute);
@@ -665,9 +686,10 @@ server.listen(port, async () => {
     conn = await r.connect({ db: 'test' });
 
 
-    const [users_index_list, org_index_list] = await all([
+    const [users_index_list, org_index_list, hierarchy_index_list] = await all([
       r.table('users').indexList().run(conn),
-      r.table('organization').indexList().run(conn)
+      r.table('organization').indexList().run(conn),
+      r.table('hierarchy').indexList().run(conn)
     ]);
 
     /* create indexes if they don't exist already */
@@ -681,7 +703,14 @@ server.listen(port, async () => {
       .forEach(index_name => indexCreate(conn, index_name, 'organization')
         .then(console.log)
         .catch(({ msg }) => console.log(msg))
-      )
+      );
+
+    ['role_id'].filter(item => !hierarchy_index_list.includes(item))
+      .forEach(index_name => indexCreate(conn, index_name, 'hierarchy')
+        .then(console.log)
+        .catch(({ msg }) => console.log(msg)
+        )
+      );
 
   } catch (e) {
     console.log(e);
