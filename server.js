@@ -189,7 +189,6 @@ const getUsersSubordinatesRoute = async (req, res) => {
     /* */
     /* extract `length` property from array */
     const { length } = role_ids;
-
     /* check if users has a number of subordinates */
     if (length) {
       subordinates = await r.table('users')
@@ -237,27 +236,25 @@ const getUsersSubordinateRoute = async (req, res) => {
 
     /* extract needed properties */
     const { role_id: sub_role_id } = subordinate;
-    const { role: user_role, employment_status } = user;
+    const { employment_status, role_id } = user;
 
     /* check if user's `employment_status` is `deactivated` */
     if (employment_status === 'deactivated') {
       return res.send(400, { message: deactivated_acc });
     }
 
-    /* get the list of `roles` that are subordinates by user `role`  */
-    const [item] = await r.table('organization')
-      .getAll(role, { index: 'job_role' }).coerceTo('array')
-      .run(conn)
+    /* get the `role_ids` that are under this `role_id` */
+    const role_ids = await r.table('hierarchy')
+      .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+      .zip()
+      .filter({ reports_to_role_id: role_id })
+      .pluck('role_id')
+      .map(r.row('role_id'))
+      .coerceTo('array')
+      .run(conn);
 
-
-    /* `item` is undefined when `user_role` is `junior developer` */
-    if (!item) {
-      return res.send(400, { message: 'Your not allowed to view this employee.' });
-    }
-
-    const { subordinateRoleIds } = item;
-    /* check if `user.role` is not allowed to view `subordinates.role` or `user.role` is 'assistant' */
-    if (!subordinateRoleIds.includes(sub_role_id) || user_role === 'assistant') {
+    /* check `item` is undefined when `user_role` is `junior developer` */
+    if (!role_ids.includes(sub_role_id)) {
       return res.send(400, { message: 'Your not allowed to view this employee.' });
     }
 
