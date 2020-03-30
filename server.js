@@ -32,7 +32,7 @@ const getUsersRoute = async (req, res) => {
     /* check if query `role` has a value and use that value for the index */
     if (req.query.role) {
       const roles = await r.table('organization')
-        .map(d => d('job_role')).coerceTo('array')
+        .map(r.row('job_role')).coerceTo('array')
         .run(conn);
       /* check if query `role` is in not roles */
       if (!roles.includes(req.query.role.toLowerCase())) {
@@ -289,7 +289,7 @@ const createUserRoute = async (req, res) => {
     conn = await r.connect({ db: 'test' });
 
     const roles = await r.table('organization')
-      .map(d => d('job_role')).coerceTo('array')
+      .map(r.row('job_role')).coerceTo('array')
       .run(conn);
 
     /* check if role is valid */
@@ -432,7 +432,7 @@ const updateUserRoute = async (req, res) => {
     conn = await r.connect({ db: 'test' });
 
     const roles = await r.table('organization')
-      .map(d => d('job_role')).coerceTo('array')
+      .map(r.row('job_role')).coerceTo('array')
       .run(conn);
 
     /* check if `role` is provided and is not valid */
