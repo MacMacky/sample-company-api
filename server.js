@@ -376,7 +376,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role: user_role, employment_status: status } = user;
+    const { employment_status: status, role_id } = user;
     const { employment_status: sub_status, role_id: sub_role_id } = subordinate;
 
     /* check if `user` employment_status is `deactivated` */
@@ -389,19 +389,19 @@ const removeUserByHigherUpRoute = async (req, res) => {
       return res.send(400, { message: `You're subordinate's account has already been deactivated.` });
     }
 
-    /* check if `user.role` is an `assistant` or `junior developer`*/
-    if (user_role === 'assistant' || user_role === 'junior developer') {
-      return res.send(400, { message: invalid_remove });
-    }
-
-    [item] = await r.table('organization')
-      .getAll(user_role, { index: 'job_role' }).coerceTo('array')
+    /* get the `role_ids` that are under this `role_id` */
+    const role_ids = await r.table('hierarchy')
+      .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+      .zip()
+      .filter({ reports_to_role_id: role_id })
+      .pluck('role_id')
+      .map(r.row('role_id'))
+      .coerceTo('array')
       .run(conn);
 
-    const { subordinateRoleIds } = item;
 
     /* check if subordinates `role_id` is not included in users `subordinatesRolesIds` */
-    if (!subordinateRoleIds.includes(sub_role_id)) {
+    if (!role_ids.includes(sub_role_id)) {
       return res.send(400, { message: invalid_remove });
     }
 
