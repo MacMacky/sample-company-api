@@ -1,6 +1,6 @@
 const restify = require('restify');
 const r = require('rethinkdb');
-const { all } = require('bluebird');
+const { all, each } = require('bluebird');
 
 
 const port = 3000;
@@ -644,9 +644,55 @@ const updateRolesRoute = async (req, res) => {
     if (!req.params.id) {
       return res.send(400, { message: invalid_id });
     }
-    /* initialize connection here and explicitly specify database name */
-    conn = await r.connect({ db: 'test' })
 
+    /* check if `role` is not provided in the body */
+    if (!req.body.job_role) {
+      return res.send(400, { message: invalid_data });
+    }
+
+    /* check if `reports_to_roles` is not an array */
+    if (!Array.isArray(req.body.reports_to_roles)) {
+      return res.send(400, { message: invalid_data });
+    }
+
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
+
+    /* get the `roles` from `org` table */
+    const org_data = await r.table('organization')
+      .coerceTo('array')
+      .run(conn);
+
+    const roles = org_data.map(({ job_role }) => job_role);
+    /* check if the provided `role` is not included in the `roles` */
+    if (!roles.includes(req.body.job_role.toLowerCase())) {
+      return res.send(400, { message: invalid_role });
+    }
+
+    /* check if one of the `roles` in `reports_to_roles` is not a valid role */
+    if (!req.body.reports_to_roles.every(job_role => roles.includes(job_role.toLowerCase()))) {
+      return res.send(400, { message: invalid_role });
+    }
+
+    /* get the `role_id` of the given `job_role` */
+    const [{ role_id }] = await r.table('organization')
+      .getAll(req.body.job_role.toLowerCase(), { index: 'job_role' })
+      .pluck('role_id')
+      .coerceTo('array')
+      .run(conn);
+
+
+    /* get the equivalent `role_ids` of specified roles. ex. `["president"] = [uuid], ["ceo","president"] = [uuid,uuid] ` */
+    const map_roles_id = req.body.reports_to_roles.map(item => org_data.find(({ job_role }) => job_role === item.toLowerCase()).role_id)
+
+    map_roles_id.forEach(async reports_to_role_id => {
+      await r.table('hierarchy').insert({
+        reports_to_role_id,
+        role_id
+      }).run(conn)
+    })
+
+    res.send(200);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
