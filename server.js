@@ -679,6 +679,14 @@ const indexCreate = async (con, index_name, table_name = 'users') => {
   return r.table(table_name).indexCreate(index_name).run(con);
 };
 
+const createIndexesIfNotExists = async (indexes_to_create, existing_indexes, conn, table_name = 'users') => {
+  indexes_to_create.filter(index => !existing_indexes.includes(index))
+    .forEach(index_name => indexCreate(conn, index_name, table_name)
+      .then(console.log)
+      .catch(({ msg }) => console.log(msg))
+    );
+}
+
 server.listen(port, async () => {
   let conn;
   try {
@@ -693,24 +701,9 @@ server.listen(port, async () => {
     ]);
 
     /* create indexes if they don't exist already */
-    ['role', 'user_name', 'role_id'].filter(item => !users_index_list.includes(item))
-      .forEach(index_name => indexCreate(conn, index_name)
-        .then(console.log)
-        .catch(({ msg }) => console.log(msg))
-      );
-
-    ['job_role'].filter(item => !org_index_list.includes(item))
-      .forEach(index_name => indexCreate(conn, index_name, 'organization')
-        .then(console.log)
-        .catch(({ msg }) => console.log(msg))
-      );
-
-    ['role_id'].filter(item => !hierarchy_index_list.includes(item))
-      .forEach(index_name => indexCreate(conn, index_name, 'hierarchy')
-        .then(console.log)
-        .catch(({ msg }) => console.log(msg)
-        )
-      );
+    createIndexesIfNotExists(['role', 'user_name', 'role_id'], users_index_list, conn);
+    createIndexesIfNotExists(['job_role'], org_index_list, conn, 'organization');
+    createIndexesIfNotExists(['role_id'], hierarchy_index_list, conn, 'hierarchy');
 
   } catch (e) {
     console.log(e);
