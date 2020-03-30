@@ -54,11 +54,8 @@ const getUsersRoute = async (req, res) => {
         .zip().coerceTo('array')
         .run(conn);
     }
-    console.log(1);
     res.send(200, { users });
   } catch (e) {
-    console.log(e);
-
     res.send(500, { message: internal_error });
   } finally {
     conn && conn.close();
@@ -103,6 +100,7 @@ const loginRoute = async (req, res) => {
     [item] = await r.table('organization')
       .getAll(role, { index: 'job_role' }).coerceTo('array')
       .run(conn)
+
 
     if (item && role !== 'assistant') {
       subordinates = await r.table('users')
@@ -191,7 +189,6 @@ const getUsersSubordinatesRoute = async (req, res) => {
 
     res.send(200, { subordinates })
   } catch (error) {
-    // console.log(error);
     res.send(500, { message: internal_error });
   } finally {
     conn && conn.close();
