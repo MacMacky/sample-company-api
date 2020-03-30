@@ -679,7 +679,7 @@ const indexCreate = async (con, index_name, table_name = 'users') => {
   return r.table(table_name).indexCreate(index_name).run(con);
 };
 
-const createIndexesIfNotExists = async (indexes_to_create, existing_indexes, conn, table_name = 'users') => {
+const createIndexesIfNotExists = (indexes_to_create, existing_indexes, conn, table_name = 'users') => {
   indexes_to_create.filter(index => !existing_indexes.includes(index))
     .forEach(index_name => indexCreate(conn, index_name, table_name)
       .then(console.log)
