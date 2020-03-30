@@ -177,24 +177,27 @@ const getUsersSubordinatesRoute = async (req, res) => {
       return res.send(400, { message: deactivated_acc });
     }
 
-    /* get subordinates by this `role` */
-    const [item] = await r.table('organization')
-      .getAll(role_id, { index: 'role_id' }).coerceTo('array')
-      .run(conn)
-
+    /* get the `role_ids` that are under this `role_id` */
+    const role_ids = await r.table('hierarchy')
+      .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+      .zip()
+      .filter({ reports_to_role_id: role_id })
+      .pluck('role_id')
+      .map(r.row('role_id'))
+      .coerceTo('array')
+      .run(conn);
     /* */
-    const { job_role, subordinateRoleIds } = item;
-    const { length } = subordinateRoleIds;
+    /* extract `length` property from array */
+    const { length } = role_ids;
 
-    /* check if `role` is not assistant and `subordinates_roles` has a value */
-    if (length && job_role !== 'assistant') {
-
+    /* check if users has a number of subordinates */
+    if (length) {
       subordinates = await r.table('users')
-        .getAll(...subordinateRoleIds, { index: 'role_id' })
-        .filter({ employment_status: 'active' })
+        .getAll(...role_ids, { index: 'role_id' })
         .coerceTo('array')
         .run(conn);
     }
+
 
     res.send(200, { subordinates })
   } catch (error) {
