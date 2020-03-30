@@ -63,7 +63,7 @@ const getUsersRoute = async (req, res) => {
 }
 
 const loginRoute = async (req, res) => {
-  let conn, item, subordinates, user;
+  let conn, subordinates = [], user;
   try {
 
     /* check if login credentials are provided */
@@ -85,7 +85,7 @@ const loginRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role, password, employment_status } = user;
+    const { password, employment_status, role_id } = user;
 
     /* check if user's `employment_status` is `deactivated` */
     if (employment_status === 'deactivated') {
@@ -97,19 +97,28 @@ const loginRoute = async (req, res) => {
       return res.send(400, { message: 'wrong password. please try again.' });
     }
 
-    [item] = await r.table('organization')
-      .getAll(role, { index: 'job_role' }).coerceTo('array')
-      .run(conn)
+    /* get the `role_ids` that are under this `role_id` */
+    const role_ids = await r.table('hierarchy')
+      .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+      .zip()
+      .filter({ reports_to_role_id: role_id })
+      .pluck('role_id')
+      .map(r.row('role_id'))
+      .coerceTo('array')
+      .run(conn);
 
+    /* extract `length` property from array */
+    const { length } = role_ids;
 
-    if (item && role !== 'assistant') {
+    /* check if users has a number of subordinates */
+    if (length) {
       subordinates = await r.table('users')
-        .getAll(...item.subordinateRoleIds, { index: 'role_id' })
-        .filter({ employment_status: 'active' }).coerceTo('array')
+        .getAll(...role_ids, { index: 'role_id' })
+        .coerceTo('array')
         .run(conn);
     }
 
-    res.send(200, { user, subordinates, is_auth: true });
+    res.send(200, { user, is_auth: true, subordinates });
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
