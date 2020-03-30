@@ -50,11 +50,11 @@ const getUsersRoute = async (req, res) => {
     } else {
       users = await r.table('users')
         .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
-        .without({ right: 'id' }) /* don't include the field `id` on the table `organization` when joining */
+        .without({ right: 'role_id', left: 'role_id' }) /* don't include the field `id` on the table `organization` when joining */
         .zip().coerceTo('array')
         .run(conn);
     }
-
+    console.log(1);
     res.send(200, { users });
   } catch (e) {
     console.log(e);
@@ -552,10 +552,76 @@ const getRolesRoute = async (req, res) => {
 
     /* get roles from table `organization` without field `id` */
     const roles = await r.table('organization')
-      .without('id').coerceTo('array')
+      .without('id', 'subordinateRoleIds').coerceTo('array')
       .run(conn);
 
     res.send(200, { roles });
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
+}
+
+const createRolesRoute = async (req, res) => {
+  let conn;
+  try {
+
+    /* check if `role_name` or `reports_to_roles` is not provided */
+    if (!req.body.job_role || !req.body.reports_to_roles) {
+      return res.send(400, { message: invalid_data });
+    }
+
+    /* check if `reports_to_roles` is not an  array */
+    if (!Array.isArray(req.body.reports_to_roles)) {
+      return res.send(400, { message: invalid_data });
+    }
+
+    /* initialize connection here and explicitly specify db name */
+    conn = await r.connect({ db: 'test' });
+
+    const roles = await r.table('organization')
+      .coerceTo('array')
+      .run(conn);
+
+    /* map the `job_role` from the `roles` object array */
+    const job_roles = roles.map(({ job_role }) => job_role);
+
+    /* check if `role_name` provided already exists in `job_roles` */
+    if (job_roles.includes(req.body.job_role.toLowerCase())) {
+      return res.send(400, { message: 'This job role already exists.' });
+    }
+
+    /* check if one of the `roles` in `reports_to_roles` is not a valid role */
+    if (!req.body.reports_to_roles.every(role => job_roles.includes(role.toLowerCase()))) {
+      return res.send(400, { message: invalid_role });
+    }
+
+    const { first_error, generated_keys } = await r.table('organization')
+      .insert({
+        job_role: req.body.job_role.toLowerCase(),
+      })
+      .run(conn);
+
+    /* check if an `error` occurred when creating new data */
+    if (first_error) {
+      return res.send(400, { message: 'Something went wrong went creating data. Please try again later.' })
+    }
+
+    /* get the equivalent `role_ids` of specified roles. ex. `["president"] = [''], ["ceo","president"] = [1,2] ` */
+    const map_roles_id = req.body.reports_to_roles.map(item => roles.find(o => o.job_role === item.toLowerCase()).role_id)
+
+    /* extract generated id to use as the `foreign key` */
+    const [id] = generated_keys;
+
+    map_roles_id.forEach(async reports_to_role_id => {
+      await r.table('hierarchy').insert({
+        reports_to_role_id,
+        role_id: id
+      }).run(conn)
+    })
+
+    res.send(200);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
@@ -572,6 +638,7 @@ server.get('/users/:id/subordinates', getUsersSubordinatesRoute);
 server.get('/users/:id/subordinates/:subordinate_id', getUsersSubordinateRoute);
 server.post('/users', createUserRoute);
 server.get('/roles', getRolesRoute);
+server.post('/roles', createRolesRoute);
 server.put('/users/:id', updateUserRoute);
 server.put('/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
 server.del('/users/:id/subordinates/:subordinate_id', removeUserByHigherUpRoute);
@@ -604,7 +671,7 @@ server.listen(port, async () => {
         .catch(({ msg }) => console.log(msg))
       );
 
-    ['job_role', 'role_id'].filter(item => !org_index_list.includes(item))
+    ['job_role'].filter(item => !org_index_list.includes(item))
       .forEach(index_name => indexCreate(conn, index_name, 'organization')
         .then(console.log)
         .catch(({ msg }) => console.log(msg))
