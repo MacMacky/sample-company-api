@@ -456,7 +456,7 @@ const updateUserRoute = async (req, res) => {
 }
 
 const updateUserByHigherUpRoute = async (req, res) => {
-  let conn, item;
+  let conn, role_ids;
   try {
     /* check if `id` or `subordinate_id` is provided */
     if (!req.params.id || !req.params.subordinate_id) {
@@ -484,7 +484,7 @@ const updateUserByHigherUpRoute = async (req, res) => {
 
     /* extract needed properties */
     const { role: sub_role, employment_status: sub_status, role_id: sub_role_id } = subordinate;
-    const { role: user_role, employment_status: status } = user;
+    const { role: user_role, employment_status: status, role_id } = user;
 
     /* check if `user.role` is a junior developer */
     if (user_role === 'junior developer' || user_role === 'assistant') {
@@ -501,20 +501,19 @@ const updateUserByHigherUpRoute = async (req, res) => {
     //   return res.send(400, { message: `You're subordinate's account has already been deactivated.` });
     // }
 
-    /* get the list of `roles` that can be updated by users `role`  */
-    [item] = await r.table('organization')
-      .getAll(user_role, { index: 'job_role' }).coerceTo('array')
+    /* get the list of `roles_ids` that can be updated by users `role_id`  */
+    role_ids = await r.table('hierarchy')
+      .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+      .zip()
+      .filter({ reports_to_role_id: role_id })
+      .pluck('role_id')
+      .map(r.row('role_id'))
+      .coerceTo('array')
       .run(conn)
-    /* ceo = ['ceo', 'assistant', 'president', 'hr', 'pm', 'senior developer', 'junior developer'] */
-    /* president = ['president', 'hr', 'pm', 'senior developer', 'junior developer']  */
-    /* hr = [hr', 'pm', 'senior developer', 'junior developer'] */
-    /* pm = ['pm', 'senior developer', 'junior developer'] */
-    /* senior developer = ['senior developer', 'junior developer'] */
 
-    const { subordinateRoleIds } = item;
 
     /* check if `employee.role` does not belong to `roles` that can be remove by `user` */
-    if (!subordinateRoleIds.includes(sub_role_id)) {
+    if (!role_ids.includes(sub_role_id)) {
       return res.send(400, { message: invalid_update })
     }
 
