@@ -615,7 +615,7 @@ const createRolesRoute = async (req, res) => {
     }
 
     /* get the equivalent `role_ids` of specified roles. ex. `["president"] = [''], ["ceo","president"] = [1,2] ` */
-    const map_roles_id = req.body.reports_to_roles.map(item => roles.find(o => o.job_role === item.toLowerCase()).role_id)
+    const map_roles_id = req.body.reports_to_roles.map(item => roles.find(({ job_role }) => job_role === item.toLowerCase()).role_id)
 
     /* extract generated id to use as the `foreign key` */
     const [id] = generated_keys;
