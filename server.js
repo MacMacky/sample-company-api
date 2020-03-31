@@ -1,6 +1,6 @@
 const restify = require('restify');
 const r = require('rethinkdb');
-const { all, each } = require('bluebird');
+const { all } = require('bluebird');
 
 
 const port = 3000;
