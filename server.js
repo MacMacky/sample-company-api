@@ -483,8 +483,15 @@ const updateUserByHigherUpRoute = async (req, res) => {
     }
 
     /* extract needed properties */
-    const { role: sub_role, employment_status: sub_status, role_id: sub_role_id } = subordinate;
-    const { role: user_role, employment_status: status, role_id } = user;
+    const { role_id: sub_role_id } = subordinate;
+    const { employment_status: status, role_id } = user;
+
+
+    const [{ job_role: user_role }, { job_role: sub_role }] = await all([
+      r.table('organization').get(role_id).run(conn),
+      r.table('organization').get(sub_role_id).run(conn)
+    ])
+
 
     /* check if `user.role` is a junior developer */
     if (user_role === 'junior developer' || user_role === 'assistant') {
@@ -537,7 +544,7 @@ const updateUserByHigherUpRoute = async (req, res) => {
 
     /* updating user */
     const { first_error } = await r.table('users').get(req.params.subordinate_id).update(
-      !req.body.role ? req.body : { ...req.body, role: req.body.role.toLowerCase() }
+      req.body
     ).run(conn);
 
     return res.send(first_error ? 400 : 200,
