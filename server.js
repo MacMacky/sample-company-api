@@ -629,14 +629,14 @@ const createRolesRoute = async (req, res) => {
     const map_roles_id = req.body.reports_to_roles.map(item => roles.find(({ job_role }) => job_role === item.toLowerCase()).role_id)
 
     /* extract generated id to use as the `foreign key` */
-    const [id] = generated_keys;
+    const [role_id] = generated_keys;
 
     /* run all insert in concurrent and convert map them to promises  */
     const promises = map_roles_id.map(reports_to_role_id =>
       r.table('hierarchy')
         .insert({
           reports_to_role_id,
-          role_id: id
+          role_id
         })
         .run(conn)
     );
