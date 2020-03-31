@@ -658,14 +658,10 @@ const updateRolesRoute = async (req, res) => {
   try {
 
     /* check if id is not provided */
-    if (!req.params.id) {
+    if (!req.params.role_id) {
       return res.send(400, { message: invalid_id });
     }
 
-    /* check if `role` is not provided in the body */
-    if (!req.body.job_role) {
-      return res.send(400, { message: invalid_data });
-    }
 
     /* check if `reports_to_roles` is not an array */
     if (!Array.isArray(req.body.reports_to_roles)) {
@@ -681,22 +677,16 @@ const updateRolesRoute = async (req, res) => {
       .run(conn);
 
     const roles = org_data.map(({ job_role }) => job_role);
-    /* check if the provided `role` is not included in the `roles` */
-    if (!roles.includes(req.body.job_role.toLowerCase())) {
-      return res.send(400, { message: invalid_role });
+
+    /* check if provided `role_id` does not exist in `role_ids` that exist in the table `organization` */
+    if (!org_data.some(({ role_id }) => role_id === req.params.role_id)) {
+      return res.send(400, { message: invalid_id });
     }
 
     /* check if one of the `roles` in `reports_to_roles` is not a valid role */
     if (!req.body.reports_to_roles.every(job_role => roles.includes(job_role.toLowerCase()))) {
       return res.send(400, { message: invalid_role });
     }
-
-    /* get the `role_id` of the given `job_role` */
-    const [{ role_id }] = await r.table('organization')
-      .getAll(req.body.job_role.toLowerCase(), { index: 'job_role' })
-      .pluck('role_id')
-      .coerceTo('array')
-      .run(conn);
 
 
     /* get the equivalent `role_ids` of specified roles. ex. `["president"] = [uuid], ["ceo","president"] = [uuid,uuid] ` */
@@ -707,7 +697,7 @@ const updateRolesRoute = async (req, res) => {
       r.table('hierarchy')
         .insert({
           reports_to_role_id,
-          role_id
+          role_id: req.params.role_id
         })
         .run(conn)
     );
@@ -733,7 +723,7 @@ server.get('/users/:id/subordinates/:subordinate_id', getUsersSubordinateRoute);
 server.post('/users', createUserRoute);
 server.get('/roles', getRolesRoute);
 server.post('/roles', createRolesRoute);
-server.put('/roles/:id', updateRolesRoute);
+server.put('/roles/:role_id', updateRolesRoute);
 server.put('/users/:id', updateUserRoute);
 server.put('/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
 server.del('/users/:id/subordinates/:subordinate_id', removeUserByHigherUpRoute);
