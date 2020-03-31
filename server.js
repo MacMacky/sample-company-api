@@ -620,12 +620,18 @@ const createRolesRoute = async (req, res) => {
     /* extract generated id to use as the `foreign key` */
     const [id] = generated_keys;
 
-    map_roles_id.forEach(async reports_to_role_id => {
-      await r.table('hierarchy').insert({
-        reports_to_role_id,
-        role_id: id
-      }).run(conn)
-    })
+    /* run all insert in concurrent and convert map them to promises  */
+    const promises = map_roles_id.map(reports_to_role_id =>
+      r.table('hierarchy')
+        .insert({
+          reports_to_role_id,
+          role_id: id
+        })
+        .run(conn)
+    );
+
+    /* wait for all insertion calls to finish before responding to client */
+    await all(promises);
 
     res.send(200);
   } catch (e) {
@@ -685,12 +691,18 @@ const updateRolesRoute = async (req, res) => {
     /* get the equivalent `role_ids` of specified roles. ex. `["president"] = [uuid], ["ceo","president"] = [uuid,uuid] ` */
     const map_roles_id = req.body.reports_to_roles.map(item => org_data.find(({ job_role }) => job_role === item.toLowerCase()).role_id)
 
-    map_roles_id.forEach(async reports_to_role_id => {
-      await r.table('hierarchy').insert({
-        reports_to_role_id,
-        role_id
-      }).run(conn)
-    })
+    /* run all insert in concurrent and convert map them to promises  */
+    const promises = map_roles_id.map(reports_to_role_id =>
+      r.table('hierarchy')
+        .insert({
+          reports_to_role_id,
+          role_id
+        })
+        .run(conn)
+    );
+
+    /* wait for all insertion calls to finish before responding to client */
+    await all(promises);
 
     res.send(200);
   } catch (e) {
