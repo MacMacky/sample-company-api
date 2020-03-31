@@ -50,7 +50,7 @@ const getUsersRoute = async (req, res) => {
     } else {
       users = await r.table('users')
         .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
-        .without({ right: 'role_id', left: 'role_id' }) /* don't include the field `id` on the table `organization` when joining */
+        .without({ right: 'role_id', left: 'role_id' }) /* don't include the field `role_id` from `left` and `right` objects*/
         .zip().coerceTo('array')
         .run(conn);
     }
