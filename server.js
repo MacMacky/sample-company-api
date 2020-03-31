@@ -558,7 +558,7 @@ const getRolesRoute = async (req, res) => {
 
     /* get roles from table `organization` without field `id` */
     const roles = await r.table('organization')
-      .without('id').coerceTo('array')
+      .coerceTo('array')
       .run(conn);
 
     res.send(200, { roles });
