@@ -45,6 +45,7 @@ const getUsersRoute = async (req, res) => {
         .zip()
         .filter(r.row('job_role').eq(req.query.role.toLowerCase()))
         .merge(item => ({
+          /* get all the user's subordinates */
           subordinates: r.table('users')
             .eqJoin('role_id', r.table('hierarchy'), { index: 'role_id' })
             .zip()
