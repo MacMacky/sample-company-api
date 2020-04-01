@@ -44,16 +44,40 @@ const getUsersRoute = async (req, res) => {
         .without({ right: 'id' })
         .zip()
         .filter(r.row('job_role').eq(req.query.role.toLowerCase()))
+        .merge(item => ({
+          subordinates: r.table('users')
+            .eqJoin('role_id', r.table('hierarchy'), { index: 'role_id' })
+            .zip()
+            .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+            .zip()
+            .filter(d => d('reports_to_role_id').eq(item('role_id')))
+            .without('reports_to_role_id', 'id', 'role_id')
+            .coerceTo('array')
+        }))
         .coerceTo('array')
         .run(conn);
 
     } else {
+      /* get all the users and their subordinates */
       users = await r.table('users')
         .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
-        .without({ right: 'role_id', left: 'role_id' }) /* don't include the field `role_id` from `left` and `right` objects*/
-        .zip().coerceTo('array')
+        .without({ left: ['role_id'] })
+        .zip()
+        .merge(item => ({
+          subordinates: r.table('users')
+            .eqJoin('role_id', r.table('hierarchy'), { index: 'role_id' })
+            .zip()
+            .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+            .zip()
+            .filter(user => user('reports_to_role_id').eq(item('role_id')))
+            .without('reports_to_role_id', 'id', 'role_id')
+            .coerceTo('array')
+        }))
+        .without('role_id', 'id')
+        .coerceTo('array')
         .run(conn);
     }
+
     res.send(200, { users });
   } catch (e) {
     res.send(500, { message: internal_error });
