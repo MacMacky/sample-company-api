@@ -92,7 +92,7 @@ const loginRoute = async (req, res) => {
       return res.send(400, { message: deactivated_acc });
     }
 
-    /* check if password is correct */
+    /* check if password is incorrect */
     if (password !== req.body.password) {
       return res.send(400, { message: 'wrong password. please try again.' });
     }
@@ -565,7 +565,24 @@ const getRolesRoute = async (req, res) => {
 
     /* get roles from table `organization` and also their subordinates using a nested query*/
 
-    const roles = await r.table('organization')
+    // const roles = await r.table('organization')
+    //   .merge(item => ({
+    //     subordinates: r.table('organization')
+    //       .eqJoin('role_id', r.table('hierarchy'), { index: 'role_id' })
+    //       .without({ right: 'id' })
+    //       .zip()
+    //       .filter({ reports_to_role_id: item('role_id') })
+    //       .pluck('job_role')
+    //       .map(d => d('job_role'))
+    //       .coerceTo('array')
+    //   }))
+    //   .coerceTo('array')
+    //   .run(conn)
+
+    const roles = await r.table('users')
+      .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+      .without({ left: ['id'] })
+      .zip()
       .merge(item => ({
         subordinates: r.table('organization')
           .eqJoin('role_id', r.table('hierarchy'), { index: 'role_id' })
@@ -573,14 +590,17 @@ const getRolesRoute = async (req, res) => {
           .zip()
           .filter({ reports_to_role_id: item('role_id') })
           .pluck('job_role')
-          .map(d => d('job_role'))
+          .map(d1 => d1('job_role'))
           .coerceTo('array')
       }))
       .coerceTo('array')
-      .run(conn)
+      .run(conn);
+
+    console.log(roles);
 
     res.send(200, { roles });
   } catch (e) {
+    console.log(e);
     res.send(500, { message: internal_error });
   } finally {
     conn && conn.close();
