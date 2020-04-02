@@ -40,16 +40,28 @@ const getUsersRoute = async (req, res) => {
       }
       /* if role is valid get data from `users` table based on the query `role` */
       users = await r.table('users')
-        .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+        .concatMap(left => r.table('organization')
+          .getAll(left('role_id'), { index: 'role_id' })
+          .map(right => ({
+            left, right
+          }))
+        )
         .without({ right: 'id' })
         .zip()
         .filter(r.row('job_role').eq(req.query.role.toLowerCase()))
         .merge(item => ({
           /* get all the user's subordinates */
           subordinates: r.table('users')
-            .eqJoin('role_id', r.table('hierarchy'), { index: 'role_id' })
+            .concatMap(left => r.table('hierarchy')
+              .getAll(left('role_id'), { index: 'role_id' })
+              .map(right => ({
+                left, right
+              })))
             .zip()
-            .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+            .concatMap(left => r.table('organization')
+              .getAll(left('role_id'), { index: 'role_id' })
+              .map(right => ({ left, right }))
+            )
             .zip()
             .filter(d => d('reports_to_role_id').eq(item('role_id')))
             .without('reports_to_role_id', 'id', 'role_id')
@@ -61,14 +73,26 @@ const getUsersRoute = async (req, res) => {
     } else {
       /* get all the users and their subordinates */
       users = await r.table('users')
-        .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+        .concatMap(left =>
+          r.table('organization')
+            .getAll(left('role_id'), { index: 'role_id' })
+            .map(right => ({
+              left, right
+            }))
+        )
         .without({ left: ['role_id'] })
         .zip()
         .merge(item => ({
           subordinates: r.table('users')
-            .eqJoin('role_id', r.table('hierarchy'), { index: 'role_id' })
+            .concatMap(left => r.table('hierarchy')
+              .getAll(left('role_id'), { index: 'role_id' })
+              .map(right => ({ left, right }))
+            )
             .zip()
-            .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+            .concatMap(left => r.table('organization')
+              .getAll(left('role_id'), { index: 'role_id' })
+              .map(right => ({ left, right }))
+            )
             .zip()
             .filter(user => user('reports_to_role_id').eq(item('role_id')))
             .without('reports_to_role_id', 'id', 'role_id')
