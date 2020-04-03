@@ -495,23 +495,54 @@ const updateUserRoute = async (req, res) => {
     /* initialize connection here and explicitly specify database name */
     conn = await r.connect({ db: 'test' });
 
-    const roles = await r.table('organization')
-      .map(r.row('job_role'))
+    /* get all data from 'organization' table */
+    const org_data = await r.table('organization')
       .coerceTo('array')
       .run(conn);
+
+    /* map `job_roles` */
+    const roles = org_data.map(({ job_role }) => job_role);
 
     /* check if `role` is provided and is not valid */
     if (req.body.role && !roles.includes(req.body.role.toLowerCase())) {
       return res.send(400, { message: invalid_role });
     }
 
+    /* get `user_id` details */
+    const user = await r.table('users')
+      .get(req.params.id)
+      .run(conn);
+
+    /* check if `user` does not exists */
+    if (!user) {
+      return res.send(400, { message: id_does_not_exists });
+    }
+
+    /* check if `role` provided  is `ceo` or `president` */
+    if (req.body.role && (req.body.role === 'ceo' || req.body.role === 'president')) {
+      /* get `ceo` and `president` role_id */
+      const { role_id: ceo_role_id } = org_data.find(o => o.job_role === 'ceo');
+      const { role_id: pres_role_id } = org_data.find(o => o.job_role === 'president');
+
+      /*get `employment_status` of `ceo` and `president` */
+      const [{ employment_status: pres_emp_status }, { employment_status: ceo_emp_status }] = await r.table('users')
+        .getAll(ceo_role_id, pres_role_id, { index: 'role_id' })
+        .coerceTo('array')
+        .run(conn);
+
+      /* check if `ceo` or `president` is active */
+      if (pres_emp_status === 'active' || ceo_emp_status === 'active') {
+        return res.send(400, { message: 'This job role is already taken.' });
+      }
+    }
+
     /* get `skipped` property to check if the user `id` exists */
-    const { skipped } = await r.table('users')
+    const { first_error } = await r.table('users')
       .get(req.params.id)
       .update(req.body)
       .run(conn)
 
-    res.send(skipped ? 400 : 200, skipped ? { message: id_does_not_exists } : req.body);
+    res.send(first_error ? 400 : 200, first_error ? { message: "Unable to update. Please try again later." } : req.body);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
