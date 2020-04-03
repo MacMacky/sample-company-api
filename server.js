@@ -148,7 +148,6 @@ const loginRoute = async (req, res) => {
 
     /* get the `role_ids` that are under this `role_id` */
     const role_ids = await r.table('hierarchy')
-      //.eqJoin('role_id', r.table('organization'), { index: 'role_id' })
       .concatMap(left => r.table('organization')
         .getAll(left('role_id'), { index: 'role_id' })
         .map(right => ({ left, right }))
@@ -636,7 +635,10 @@ const getRolesRoute = async (req, res) => {
     const roles = await r.table('organization')
       .merge(item => ({
         subordinates: r.table('organization')
-          .eqJoin('role_id', r.table('hierarchy'), { index: 'role_id' })
+          .concatMap(left => r.table('hierarchy')
+            .getAll(left('role_id'), { index: 'role_id' })
+            .map(right => ({ left, right }))
+          )
           .without({ right: 'id' })
           .zip()
           .filter({ reports_to_role_id: item('role_id') })
