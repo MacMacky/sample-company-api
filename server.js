@@ -370,7 +370,10 @@ const createUserRoute = async (req, res) => {
     if (req.body.role.toLowerCase() === 'president' || req.body.role.toLowerCase() === 'ceo') {
 
       [user] = await r.table('users')
-        .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+        .concatMap(left => r.table('organization')
+          .getAll(left('role_id'), { index: 'role_id' })
+          .map(right => ({ left, right }))
+        )
         .without({ right: 'id' })
         .zip()
         .filter(r.row('job_role').eq(req.body.role.toLowerCase()))
