@@ -575,7 +575,10 @@ const updateUserByHigherUpRoute = async (req, res) => {
 
     /* get the list of `roles_ids` that can be updated by users `role_id`  */
     role_ids = await r.table('hierarchy')
-      .eqJoin('role_id', r.table('organization'), { index: 'role_id' })
+      .concatMap(left => r.table('organization')
+        .getAll(left('role_id'), { index: 'role_id' })
+        .map(right => ({ left, right }))
+      )
       .zip()
       .filter({ reports_to_role_id: role_id })
       .pluck('role_id')
