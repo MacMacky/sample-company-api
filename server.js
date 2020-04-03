@@ -484,7 +484,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
 }
 
 const updateUserRoute = async (req, res) => {
-  let conn;
+  let conn, role_id, body_reference;
   try {
 
     /* check if id is not provided */
@@ -536,13 +536,28 @@ const updateUserRoute = async (req, res) => {
       }
     }
 
+    /* if `role` is provided get the new `role_id` of the user */
+    if (req.body.role) {
+
+      body_reference = { ...req.body };
+
+      [{ role_id }] = await r.table('organization')
+        .getAll(req.body.role.toLowerCase(), { index: 'job_role' })
+        .coerceTo('array')
+        .run(conn);
+
+      /* remove `role` so it does not add a new field when inserting  */
+      delete req.body.role;
+
+    }
+
     /* get `skipped` property to check if the user `id` exists */
     const { first_error } = await r.table('users')
       .get(req.params.id)
-      .update(req.body)
+      .update(role_id ? { ...req.body, role_id } : req.body)
       .run(conn)
 
-    res.send(first_error ? 400 : 200, first_error ? { message: "Unable to update. Please try again later." } : req.body);
+    res.send(first_error ? 400 : 200, first_error ? { message: "Unable to update. Please try again later." } : body_reference ? body_reference : req.body);
   } catch (e) {
     res.send(500, { message: internal_error });
   } finally {
