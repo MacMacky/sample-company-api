@@ -603,7 +603,7 @@ const updateUserByHigherUpRoute = async (req, res) => {
     ])
 
 
-    /* check if `user.role` is a junior developer */
+    /* check if `job_role` is a junior developer or an `assistant` */
     if (user_role === 'junior developer' || user_role === 'assistant') {
       return res.send(400, { message: invalid_update })
     }
