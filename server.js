@@ -521,8 +521,8 @@ const updateUserRoute = async (req, res) => {
     /* check if `role` provided  is `ceo` or `president` */
     if (req.body.role && (req.body.role === 'ceo' || req.body.role === 'president')) {
       /* get `ceo` and `president` role_id */
-      const { role_id: ceo_role_id } = org_data.find(o => o.job_role === 'ceo');
-      const { role_id: pres_role_id } = org_data.find(o => o.job_role === 'president');
+      const { role_id: ceo_role_id } = org_data.find(({ job_role }) => job_role === 'ceo');
+      const { role_id: pres_role_id } = org_data.find(({ job_role }) => job_role === 'president');
 
       /*get `employment_status` of `ceo` and `president` */
       const [{ employment_status: pres_emp_status }, { employment_status: ceo_emp_status }] = await r.table('users')
