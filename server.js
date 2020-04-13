@@ -836,6 +836,50 @@ const updateRolesRoute = async (req, res) => {
   }
 }
 
+
+const removeRoleRoute = async (req, res) => {
+  let conn;
+  try {
+    /* check if id is not provided */
+    if (!req.params.role_id) {
+      return res.send(400, { message: invalid_id });
+    }
+
+    /* initialize connection here and explicitly specify database name */
+    conn = await r.connect({ db: 'test' });
+
+    /* fetch `role` from table */
+    let role = await r.table('organization')
+      .get(req.params.id)
+      .run(conn);
+
+    /* check if `role_id` does not exist  */
+    if (!role) {
+      return res.send(400, { message: invalid_id });
+    }
+
+    /* remove from 'hierarchy' this `role_id` */
+    await r.table('hierarchy')
+      .getAll(req.params.id, { index: 'role_id' })
+      .delete()
+      .run(conn)
+
+    /* update all `users` with this `role_id` */
+    await r.table('users')
+      .getAll(req.params.role_id, { index: 'role_id' })
+      .update({
+        employment_status: 'deactivated'
+      })
+      .run(conn);
+
+    res.send(200);
+  } catch (e) {
+    res.send(500, { message: internal_error });
+  } finally {
+    conn && conn.close();
+  }
+}
+
 server.use(restify.plugins.bodyParser());
 server.use(restify.plugins.queryParser());
 server.post('/login', loginRoute);
@@ -847,6 +891,7 @@ server.post('/users', createUserRoute);
 server.get('/roles', getRolesRoute);
 server.post('/roles', createRolesRoute);
 server.put('/roles/:role_id', updateRolesRoute);
+server.del('/roles/:role_id', removeRoleRoute);
 server.put('/users/:id', updateUserRoute);
 server.put('/users/:id/subordinates/:subordinate_id', updateUserByHigherUpRoute);
 server.del('/users/:id/subordinates/:subordinate_id', removeUserByHigherUpRoute);
