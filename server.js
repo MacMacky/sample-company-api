@@ -683,8 +683,7 @@ const getRolesRoute = async (req, res) => {
           .without({ right: 'id' })
           .zip()
           .filter({ reports_to_role_id: item('role_id') })
-          .pluck('job_role')
-          .map(d => d('job_role'))
+          .getField('job_role') /* equivalent to .pluck('job_role').map(r.row('job_role')) or ('job_role') */
           .coerceTo('array')
       }))
       .coerceTo('array')
