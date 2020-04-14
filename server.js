@@ -675,7 +675,7 @@ const getRolesRoute = async (req, res) => {
 
     const roles = await r.table('organization')
       .merge(item => ({
-        subordinates: r.table('organization')
+        subordinates: r.table('organization') /* get the list of subordinate `job_role` of a specific `role_id` */
           .concatMap(left => r.table('hierarchy')
             .getAll(left('role_id'), { index: 'role_id' })
             .map(right => ({ left, right }))
@@ -683,6 +683,20 @@ const getRolesRoute = async (req, res) => {
           .without({ right: 'id' })
           .zip()
           .filter({ reports_to_role_id: item('role_id') })
+          .getField('job_role') /* equivalent to .pluck('job_role').map(r.row('job_role')) or ('job_role') */
+          .coerceTo('array'),
+        superiors: r.table('hierarchy') /* get the list of superior `job_role` of a specific `role_id` */
+          .getAll(item('role_id'), { index: 'role_id' })
+          .pluck('reports_to_role_id')
+          .merge(d => ({
+            job_role: r.branch(
+              d('reports_to_role_id').eq(null),
+              null,
+              r.table('organization')
+                .get(d('reports_to_role_id'))
+                .getField('job_role') /* equivalent ('job_role') */
+            )
+          }))
           .getField('job_role') /* equivalent to .pluck('job_role').map(r.row('job_role')) or ('job_role') */
           .coerceTo('array')
       }))
