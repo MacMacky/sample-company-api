@@ -154,8 +154,7 @@ const loginRoute = async (req, res) => {
       )
       .zip()
       .filter({ reports_to_role_id: role_id })
-      .pluck('role_id')
-      .map(r.row('role_id'))
+      .getField('role_id') /* equivalent to .pluck('role_id').map(r.row('role_id')) or ('role_id') */
       .coerceTo('array')
       .run(conn);
 
