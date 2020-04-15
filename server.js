@@ -149,7 +149,7 @@ const loginRoute = async (req, res) => {
     /* get the `role_ids` that are under this `role_id` */
     const role_ids = await r.table('hierarchy')
       .getAll(role_id, { index: 'reports_to_role_id' })
-      .getField('role_id') /* equivalent to .pluck('role_id').map(r.row('role_id')) or ('role_id') */
+      .getField('role_id') /*equivalent to ('role_id') */
       .coerceTo('array')
       .run(conn);
 
@@ -227,7 +227,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
     /* get the `role_ids` that are under this `role_id` */
     const role_ids = await r.table('hierarchy')
       .getAll(role_id, { index: 'reports_to_role_id' })
-      .getField('role_id') /* equivalent to .pluck('role_id').map(r.row('role_id')) or ('role_id') */
+      .getField('role_id') /*equivalent to ('role_id') */
       .coerceTo('array')
       .run(conn);
     /* */
@@ -291,7 +291,7 @@ const getUsersSubordinateRoute = async (req, res) => {
     /* get the `role_ids` that are under this `role_id` */
     const role_ids = await r.table('hierarchy')
       .getAll(role_id, { index: 'reports_to_role_id' })
-      .getField('role_id') /* equivalent to .pluck('role_id').map(r.row('role_id')) or ('role_id') */
+      .getField('role_id') /* equivalent to ('role_id') */
       .coerceTo('array')
       .run(conn);
 
@@ -437,7 +437,7 @@ const removeUserByHigherUpRoute = async (req, res) => {
     /* get the `role_ids` that are under this `role_id` */
     const role_ids = await r.table('hierarchy')
       .getAll(role_id, { index: 'reports_to_role_id' })
-      .getField('role_id') /* equivalent to .pluck('role_id').map(r.row('role_id')) or ('role_id') */
+      .getField('role_id') /* equivalent to ('role_id') */
       .coerceTo('array')
       .run(conn);
 
@@ -599,7 +599,7 @@ const updateUserByHigherUpRoute = async (req, res) => {
     /* get the list of `roles_ids` that can be updated by users `role_id`  */
     role_ids = await r.table('hierarchy')
       .getAll(role_id, { index: 'reports_to_role_id' })
-      .getField('role_id') /* equivalent to .pluck('role_id').map(r.row('role_id')) or ('role_id') */
+      .getField('role_id') /* equivalent to ('role_id') */
       .coerceTo('array')
       .run(conn)
 
@@ -660,7 +660,7 @@ const getRolesRoute = async (req, res) => {
           .without({ right: 'id' })
           .zip()
           .filter({ reports_to_role_id: item('role_id') })
-          .getField('job_role') /* equivalent to .pluck('job_role').map(r.row('job_role')) or ('job_role') */
+          .getField('job_role') /* equivalent to ('job_role') */
           .coerceTo('array'),
         superiors: r.table('hierarchy') /* get the list of superior `job_role` of a specific `role_id` */
           .getAll(item('role_id'), { index: 'role_id' })
@@ -674,7 +674,7 @@ const getRolesRoute = async (req, res) => {
                 .getField('job_role') /* equivalent ('job_role') */
             )
           }))
-          .getField('job_role') /* equivalent to .pluck('job_role').map(r.row('job_role')) or ('job_role') */
+          .getField('job_role') /* equivalent to ('job_role') */
           .coerceTo('array')
       }))
       .coerceTo('array')
