@@ -937,7 +937,7 @@ server.listen(port, async () => {
     /* create indexes if they don't exist already */
     createIndexesIfNotExists(['user_name', 'role_id'], users_index_list, conn);
     createIndexesIfNotExists(['job_role'], org_index_list, conn, 'organization');
-    createIndexesIfNotExists(['role_id'], hierarchy_index_list, conn, 'hierarchy');
+    createIndexesIfNotExists(['role_id', 'reports_to_role_id'], hierarchy_index_list, conn, 'hierarchy');
 
   } catch (e) {
     console.log(e);
