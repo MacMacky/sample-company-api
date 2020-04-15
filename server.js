@@ -226,12 +226,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
 
     /* get the `role_ids` that are under this `role_id` */
     const role_ids = await r.table('hierarchy')
-      .concatMap(left => r.table('organization')
-        .getAll(left('role_id'), { index: 'role_id' })
-        .map(right => ({ left, right }))
-      )
-      .zip()
-      .filter({ reports_to_role_id: role_id })
+      .getAll(role_id, { index: 'reports_to_role_id' })
       .getField('role_id') /* equivalent to .pluck('role_id').map(r.row('role_id')) or ('role_id') */
       .coerceTo('array')
       .run(conn);
@@ -242,6 +237,7 @@ const getUsersSubordinatesRoute = async (req, res) => {
     if (length) {
       subordinates = await r.table('users')
         .getAll(...role_ids, { index: 'role_id' })
+        .filter({ employment_status: 'active' })
         .coerceTo('array')
         .run(conn);
     }
