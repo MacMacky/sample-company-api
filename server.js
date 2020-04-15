@@ -160,6 +160,7 @@ const loginRoute = async (req, res) => {
     if (length) {
       subordinates = await r.table('users')
         .getAll(...role_ids, { index: 'role_id' })
+        .filter({ employment_status: 'active' })
         .coerceTo('array')
         .run(conn);
     }
