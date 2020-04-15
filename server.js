@@ -308,7 +308,7 @@ const getUsersSubordinateRoute = async (req, res) => {
       .coerceTo('array')
       .run(conn);
 
-    /* check `item` is undefined when `user_role` is `junior developer` */
+    /* check `sub_role_id` is a subordinate of `user` */
     if (!role_ids.includes(sub_role_id)) {
       return res.send(400, { message: 'Your not allowed to view this employee.' });
     }
